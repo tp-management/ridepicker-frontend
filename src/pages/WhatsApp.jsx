@@ -7,6 +7,7 @@ import WhatsappPairingCard from "@/components/whatsapp/WhatsappPairingCard";
 import WhatsappConnectedCard from "@/components/whatsapp/WhatsappConnectedCard";
 import WhatsappReconnectingCard from "@/components/whatsapp/WhatsappReconnectingCard";
 import WhatsappDemoControls from "@/components/whatsapp/WhatsappDemoControls";
+import AssistPreferencesCard from "@/components/whatsapp/AssistPreferencesCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function WhatsApp() {
@@ -31,6 +32,7 @@ export default function WhatsApp() {
   const pairingCode = whatsappSession?.pairingCode || null;
   const account = whatsappSession?.account || null;
   const connectedAt = whatsappSession?.connectedAt || null;
+  const assistPreferencesEnabled = status === "connected";
 
   const enableRidePicker = () => {
     if (!hasActiveSubscription) {
@@ -99,7 +101,7 @@ export default function WhatsApp() {
         <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">WhatsApp</h1>
         <p className="mt-1 text-sm text-slate-500">
           {status === "connected"
-            ? "Your WhatsApp connection."
+            ? "Your WhatsApp connection and Assist message preferences."
             : "Connect WhatsApp with a phone pairing code to start detecting jobs."}
         </p>
       </div>
@@ -126,6 +128,8 @@ export default function WhatsApp() {
           <GettingStarted />
         </div>
       )}
+
+      <AssistPreferencesCard enabled={assistPreferencesEnabled} />
 
       <WhatsappDemoControls status={status} onSimulateDrop={simulateDrop} onReset={reset} />
 
