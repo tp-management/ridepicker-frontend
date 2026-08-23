@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Briefcase, Activity, MessageCircle, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Briefcase, Activity, MessageCircle, ListFilter, Settings, LogOut } from "lucide-react";
 import { GlobalStatus } from "./GlobalStatus";
 import { useAuth } from "@/lib/AuthContext";
 import { useProduct } from "@/lib/product/ProductContext";
@@ -10,6 +10,7 @@ const NAV = [
   { to: "/jobs", label: "Jobs", icon: Briefcase, end: false },
   { to: "/activity", label: "Activity", icon: Activity, end: false },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, end: false },
+  { to: "/assist-preferences", label: "Assist preferences", icon: ListFilter, end: false },
   { to: "/settings", label: "Settings", icon: Settings, end: false },
 ];
 
