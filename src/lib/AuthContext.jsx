@@ -2,12 +2,11 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { authService } from '@/lib/services/authService';
 
-// RidePicker authentication is phone-based and self-contained. This context no
-// longer depends on Base44 at runtime: no base44.auth.me(), no public-settings
-// request, no platform token. The mock session (authService) is the single
-// source of identity. The `base44` import is retained only because this file
-// is platform-managed; it is not called. Replace authService with a Supabase
-// auth adapter later without touching this file or the auth screens.
+// RidePicker authentication is phone-based and self-contained. In API mode,
+// authService restores a verified Supabase phone-OTP session and asks the
+// RidePicker backend for the profile owned by that authenticated subject. The
+// Base44 import is retained only because this file is platform-managed; it is
+// not called.
 
 const AuthContext = createContext();
 
@@ -15,8 +14,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  // Kept for compatibility with the app shell (which reads these), but mock
-  // mode needs no public settings and produces no auth errors.
+  // Kept for compatibility with the app shell, which still reads these props.
   const [isLoadingPublicSettings] = useState(false);
   const [authError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -31,7 +29,7 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
         }
       } catch (e) {
-        // ignore — no session means unauthenticated
+        // No valid/restorable session means unauthenticated.
       }
       if (active) {
         setIsLoadingAuth(false);
@@ -43,8 +41,8 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const applyPhoneSession = (mockUser) => {
-    setUser(mockUser);
+  const applyPhoneSession = (authenticatedUser) => {
+    setUser(authenticatedUser);
     setIsAuthenticated(true);
     setAuthChecked(true);
   };
