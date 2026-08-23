@@ -4,7 +4,7 @@ const pathFor = (userId) => `/api/users/${encoded(userId)}/assist-preferences`;
 
 export const assistPreferencesApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "assist");
   },
 
   async get(userId) {
@@ -17,7 +17,7 @@ export const assistPreferencesApi = {
       method: "PUT",
       body: { keywords },
     });
-    apiChanges.notify();
+    apiChanges.notify({ scopes: ["assist"], reason: "local_assist_write" });
     return data?.assistPreferences || { keywords: [] };
   },
 };
