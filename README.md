@@ -109,4 +109,4 @@ only while the project lives in the Builder. The standalone app runtime does
 not depend on them; after export they (and `src/api/base44Client.js`, `base44/`)
 can be removed — see HANDOFF.md §12.
 
-Docs: https://docs.base44.com · Support: https://app.base44.com/support
+Docs: https://docs.base44.com · Support: https://app.base44.com/support# ridepicker-frontend
