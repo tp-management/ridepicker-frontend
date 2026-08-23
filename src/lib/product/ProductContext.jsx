@@ -333,14 +333,10 @@ export function ProductProvider({ children }) {
     }
   }, [waStatus, whatsappLoading, addActivity]);
 
-  useEffect(() => {
-    if (whatsappLoading) return;
-    if (waStatus === "disconnected" && mode !== "off") {
-      setModeState("off");
-      setBotStartedAt(null);
-      ridePickerService.setMode(user?.id, "off", null).catch(() => {});
-    }
-  }, [waStatus, mode, user?.id, whatsappLoading]);
+  // WhatsApp transport availability is not user intent. Temporary deploy,
+  // reconnect or network states must never persist RidePicker mode="off".
+  // Explicit disconnect/logout is finalized by the backend, which is the
+  // authoritative place that turns monitoring off.
 
   const enableDemo = useCallback(() => {
     demoModeRef.current = true;
