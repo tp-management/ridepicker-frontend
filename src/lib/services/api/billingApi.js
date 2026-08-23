@@ -25,6 +25,12 @@ export const billingApi = {
     return fetchSubscription(user.id);
   },
 
+  async listInvoices(user) {
+    if (!user?.id) return [];
+    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/invoices`);
+    return data?.invoices || [];
+  },
+
   getPaymentUrl() {
     return config.paymentUrl;
   },
