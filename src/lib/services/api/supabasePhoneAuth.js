@@ -30,6 +30,20 @@ export function getStoredAuthSession() {
   }
 }
 
+function expiryInMilliseconds(session) {
+  const rawExpiresAt = Number(session?.expires_at || 0);
+  if (Number.isFinite(rawExpiresAt) && rawExpiresAt > 0) {
+    // GoTrue/Supabase sessions commonly expose expires_at as Unix seconds,
+    // while Date.now() is milliseconds. Preserve millisecond timestamps when
+    // already supplied by a compatible implementation.
+    return rawExpiresAt < 1_000_000_000_000
+      ? rawExpiresAt * 1000
+      : rawExpiresAt;
+  }
+
+  return Date.now() + Number(session?.expires_in || 3600) * 1000;
+}
+
 function storeAuthSession(session) {
   if (!session?.access_token || !session?.refresh_token) {
     throw new Error("Supabase did not return a valid authentication session.");
@@ -37,9 +51,7 @@ function storeAuthSession(session) {
 
   const normalized = {
     ...session,
-    expires_at:
-      Number(session.expires_at) ||
-      Date.now() + Number(session.expires_in || 3600) * 1000,
+    expires_at: expiryInMilliseconds(session),
   };
 
   try {
