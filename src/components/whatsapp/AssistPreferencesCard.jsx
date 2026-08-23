@@ -22,7 +22,6 @@ export default function AssistPreferencesCard({ enabled }) {
   const addKeyword = (event) => {
     event?.preventDefault();
     if (!enabled) return;
-
     const value = draft.trim();
     if (!value) return;
 
@@ -66,9 +65,7 @@ export default function AssistPreferencesCard({ enabled }) {
         </div>
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-            enabled
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-slate-200 text-slate-500"
+            enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-200 text-slate-500"
           }`}
         >
           {enabled ? "Available" : "Connect WhatsApp"}
@@ -82,7 +79,7 @@ export default function AssistPreferencesCard({ enabled }) {
         </div>
       )}
 
-      <div className={!enabled ? "pointer-events-none select-none opacity-45" : ""}>
+      <fieldset disabled={!enabled} className={!enabled ? "select-none opacity-45" : ""}>
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-3 text-sm text-sky-900">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
           <div>Frontend preview only. Keywords are not saved yet and disappear after refresh.</div>
@@ -111,12 +108,11 @@ export default function AssistPreferencesCard({ enabled }) {
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Add a keyword, e.g. LHR"
             maxLength={80}
-            disabled={!enabled}
             className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200/60 disabled:cursor-not-allowed"
           />
           <button
             type="submit"
-            disabled={!enabled || !draft.trim()}
+            disabled={!draft.trim()}
             className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
@@ -140,7 +136,6 @@ export default function AssistPreferencesCard({ enabled }) {
                   <button
                     type="button"
                     onClick={() => removeKeyword(keyword)}
-                    disabled={!enabled}
                     className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed"
                     aria-label={`Remove ${keyword}`}
                   >
@@ -168,7 +163,6 @@ export default function AssistPreferencesCard({ enabled }) {
             value={sampleMessage}
             onChange={(event) => setSampleMessage(event.target.value)}
             rows={3}
-            disabled={!enabled}
             placeholder="Paste any example WhatsApp message here..."
             className="mt-3 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200/60 disabled:cursor-not-allowed"
           />
@@ -208,7 +202,7 @@ export default function AssistPreferencesCard({ enabled }) {
             )}
           </div>
         </div>
-      </div>
+      </fieldset>
     </section>
   );
 }
