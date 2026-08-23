@@ -19,6 +19,7 @@ import Home from '@/pages/Home';
 import Jobs from '@/pages/Jobs';
 import Activity from '@/pages/Activity';
 import WhatsApp from '@/pages/WhatsApp';
+import AssistPreferences from '@/pages/AssistPreferences';
 import Settings from '@/pages/Settings';
 import Billing from '@/pages/Billing';
 
@@ -59,6 +60,7 @@ const AuthenticatedApp = () => {
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/activity" element={<Activity />} />
           <Route path="/whatsapp" element={<WhatsApp />} />
+          <Route path="/assist-preferences" element={<AssistPreferences />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/billing" element={<Billing />} />
         </Route>
