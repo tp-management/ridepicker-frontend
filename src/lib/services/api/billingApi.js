@@ -1,0 +1,71 @@
+import { config } from "@/lib/config";
+import { apiChanges, apiRequest, encoded } from "./apiClient";
+
+const PLAN = { name: "RidePicker Premium", price: 180, currency: "EUR", interval: "month" };
+
+function normalizeSubscription(subscription) {
+  if (!subscription) return null;
+  return {
+    ...subscription,
+    // The current UI calls the not-yet-paid state "none".
+    status: subscription.status === "payment_required" ? "none" : subscription.status,
+  };
+}
+
+async function fetchSubscription(userId) {
+  const data = await apiRequest(`/api/users/${encoded(userId)}/billing`);
+  return normalizeSubscription(data?.subscription || null);
+}
+
+export const billingApi = {
+  PLAN,
+
+  async getSubscription(user) {
+    if (!user?.id) return null;
+    return fetchSubscription(user.id);
+  },
+
+  getPaymentUrl() {
+    return config.paymentUrl;
+  },
+
+  subscribe(listener) {
+    return apiChanges.subscribe(listener);
+  },
+
+  async activate(user) {
+    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/activate`, {
+      method: "POST",
+    });
+    apiChanges.notify();
+    return normalizeSubscription(data?.subscription || null);
+  },
+
+  async simulatePaymentFailure(user) {
+    return fetchSubscription(user?.id);
+  },
+
+  async updatePaymentMethod(user) {
+    return fetchSubscription(user?.id);
+  },
+
+  async cancel(user) {
+    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/cancel`, {
+      method: "POST",
+    });
+    apiChanges.notify();
+    return normalizeSubscription(data?.subscription || null);
+  },
+
+  async reactivate(user) {
+    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/reactivate`, {
+      method: "POST",
+    });
+    apiChanges.notify();
+    return normalizeSubscription(data?.subscription || null);
+  },
+
+  reset() {
+    // There is deliberately no production "reset billing" endpoint.
+  },
+};

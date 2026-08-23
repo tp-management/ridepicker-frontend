@@ -1,0 +1,229 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { format } from "date-fns";
+import { User, Power, MessageCircle, LogOut, ChevronRight, CreditCard, Save, RotateCcw } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { useProduct } from "@/lib/product/ProductContext";
+import { useRidePickerMode } from "@/lib/product/useRidePickerMode";
+import { useToast } from "@/components/ui/use-toast";
+import ModeControl from "@/components/ModeControl";
+import { config } from "@/lib/config";
+import ConfirmDialog from "@/components/ConfirmDialog";
+
+const STATUS_LABEL = {
+  none: "Payment required",
+  active: "Active",
+  past_due: "Payment issue",
+  cancelled: "Cancelled",
+};
+const STATUS_TONE = {
+  none: "text-amber-600",
+  active: "text-emerald-600",
+  past_due: "text-rose-600",
+  cancelled: "text-slate-500",
+};
+
+export default function Settings() {
+  const { user } = useAuth();
+  const { whatsappConnected, mode, subscription, logout, updateProfile, resetDevData, isDevUser } =
+    useProduct();
+  const { onMode } = useRidePickerMode();
+  const { toast } = useToast();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [editName, setEditName] = useState(user?.full_name || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    setEditName(user?.full_name || "");
+  }, [user?.full_name]);
+
+  const subStatus = subscription?.status || "none";
+  const nextPayment =
+    subStatus === "active" && subscription?.nextPaymentDate
+      ? `€180 on ${format(new Date(subscription.nextPaymentDate), "d MMM yyyy")}`
+      : null;
+
+  const nameChanged = editName.trim() && editName.trim() !== (user?.full_name || "");
+
+  const saveProfile = () => {
+    if (!nameChanged) return;
+    setSavingProfile(true);
+    updateProfile({ name: editName.trim() });
+    setTimeout(() => {
+      setSavingProfile(false);
+      toast({ title: "Profile updated", description: "Your name has been saved." });
+    }, 300);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Settings</h1>
+        <p className="mt-1 text-sm text-slate-500">Manage your account and RidePicker preferences.</p>
+      </div>
+
+      <Section icon={User} title="Profile">
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="profile-name" className="text-sm text-slate-500">
+              Name
+            </label>
+            <div className="mt-1 flex gap-2">
+              <input
+                id="profile-name"
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200/60"
+              />
+              <button
+                onClick={saveProfile}
+                disabled={!nameChanged || savingProfile}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" /> Save
+              </button>
+            </div>
+          </div>
+          <Row label="Email" value={user?.email || "—"} />
+          <Row label="Phone" value={user?.phone || "—"} />
+        </div>
+      </Section>
+
+      <Section icon={Power} title="RidePicker preferences">
+        <div className="text-sm font-medium text-slate-900">RidePicker mode</div>
+        <div className="text-sm text-slate-500">
+          {whatsappConnected
+            ? "Choose how actively RidePicker works for you."
+            : "Connect WhatsApp to enable RidePicker."}
+        </div>
+        <div className="mt-3 max-w-sm">
+          <ModeControl mode={mode} onMode={onMode} disabled={!whatsappConnected} />
+        </div>
+        <ul className="mt-4 space-y-2 text-sm text-slate-600">
+          <li>
+            <span className="font-medium text-slate-900">Off</span> — RidePicker is inactive.
+          </li>
+          <li>
+            <span className="font-medium text-slate-900">Assist</span> — monitors new messages,
+            detects jobs and alerts you.
+          </li>
+          <li>
+            <span className="font-medium text-slate-900">Autopilot</span> — also contacts senders,
+            follows up and negotiates within your rules.{" "}
+            <span className="font-medium text-amber-600">Coming soon.</span>
+          </li>
+        </ul>
+      </Section>
+
+      <Section icon={CreditCard} title="Billing">
+        <div className="space-y-0.5">
+          <Row label="Plan" value="RidePicker Premium" />
+          <Row label="Price" value="€180 / month" />
+          <Row
+            label="Status"
+            value={
+              <span className={`font-medium ${STATUS_TONE[subStatus]}`}>{STATUS_LABEL[subStatus]}</span>
+            }
+          />
+          {nextPayment && <Row label="Next payment" value={nextPayment} />}
+        </div>
+        <div className="mt-4">
+          <Link
+            to="/billing"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Manage billing <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </Section>
+
+      <Section icon={MessageCircle} title="WhatsApp">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium text-slate-900">
+              {whatsappConnected ? "Connected" : "Not connected"}
+            </div>
+            <div className="text-sm text-slate-500">
+              {whatsappConnected
+                ? "RidePicker is linked to your WhatsApp account."
+                : "Connect WhatsApp so RidePicker can monitor messages."}
+            </div>
+          </div>
+          <Link
+            to="/whatsapp"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            {whatsappConnected ? "Manage" : "Connect"} <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </Section>
+
+      <Section icon={LogOut} title="Account">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setConfirmLogout(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3.5 py-2 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+          >
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
+          {config.enableDevTools && isDevUser && (
+            <button
+              onClick={() => setConfirmReset(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              <RotateCcw className="h-4 w-4" /> Reset development data
+            </button>
+          )}
+        </div>
+      </Section>
+
+      <ConfirmDialog
+        open={confirmLogout}
+        title="Sign out?"
+        description="You'll return to the RidePicker welcome screen."
+        confirmLabel="Sign out"
+        destructive
+        onConfirm={() => {
+          setConfirmLogout(false);
+          logout();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
+      <ConfirmDialog
+        open={confirmReset}
+        title="Reset development data?"
+        description="This restores the development account to its default mock state. Your current changes will be lost."
+        confirmLabel="Reset"
+        destructive
+        onConfirm={() => {
+          setConfirmReset(false);
+          resetDevData();
+        }}
+        onCancel={() => setConfirmReset(false)}
+      />
+    </div>
+  );
+}
+
+function Section({ icon: Icon, title, children }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <Icon className="h-4 w-4 text-slate-400" />
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-b-0">
+      <span className="text-sm text-slate-500">{label}</span>
+      <span className="text-sm font-medium text-slate-900">{value}</span>
+    </div>
+  );
+}
