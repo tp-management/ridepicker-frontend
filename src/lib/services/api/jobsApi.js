@@ -2,10 +2,12 @@ import { apiChanges, apiRequest, encoded } from "./apiClient";
 
 const userPath = (userId) => `/api/users/${encoded(userId)}/jobs`;
 const jobPath = (userId, jobId) => `${userPath(userId)}/${encoded(jobId)}`;
+const notifyJobs = () =>
+  apiChanges.notify({ scopes: ["jobs", "activity"], reason: "local_job_write" });
 
 export const jobsApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "jobs");
   },
 
   async list(userId) {
@@ -23,7 +25,7 @@ export const jobsApi = {
       method: "POST",
       body: input,
     });
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 
@@ -32,7 +34,7 @@ export const jobsApi = {
       method: "PATCH",
       body: patch,
     });
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 
@@ -40,7 +42,7 @@ export const jobsApi = {
     const data = await apiRequest(jobPath(userId, jobId), {
       method: "DELETE",
     });
-    apiChanges.notify();
+    notifyJobs();
     return Boolean(data?.ok);
   },
 
@@ -49,7 +51,7 @@ export const jobsApi = {
       method: "PATCH",
       body: { status },
     });
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 
@@ -58,7 +60,7 @@ export const jobsApi = {
       method: "PATCH",
       body: patch,
     });
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 
@@ -77,7 +79,7 @@ export const jobsApi = {
       method: "POST",
       body: expense,
     });
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 
@@ -89,7 +91,7 @@ export const jobsApi = {
         body: patch,
       }
     );
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 
@@ -98,7 +100,7 @@ export const jobsApi = {
       `${jobPath(userId, jobId)}/expenses/${encoded(expenseId)}`,
       { method: "DELETE" }
     );
-    apiChanges.notify();
+    notifyJobs();
     return data?.job || null;
   },
 };
