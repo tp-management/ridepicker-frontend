@@ -17,7 +17,6 @@ export const preferencesApi = {
       method: "PATCH",
       body: patch,
     });
-    apiChanges.notify({ scopes: ["preferences"], reason: "local_preferences_write" });
     return data?.preferences || null;
   },
 };
