@@ -17,7 +17,6 @@ export const assistPreferencesApi = {
       method: "PUT",
       body: { keywords },
     });
-    apiChanges.notify({ scopes: ["assist"], reason: "local_assist_write" });
     return data?.assistPreferences || { keywords: [] };
   },
 };
