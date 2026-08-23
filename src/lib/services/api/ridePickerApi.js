@@ -10,14 +10,9 @@ export const ridePickerApi = {
   },
 
   async setMode(userId, mode) {
-    const state = await apiRequest(`/api/users/${encoded(userId)}/ridepicker`, {
+    return apiRequest(`/api/users/${encoded(userId)}/ridepicker`, {
       method: "PUT",
       body: { mode },
     });
-    apiChanges.notify({
-      scopes: ["ridepicker", "activity"],
-      reason: "local_ridepicker_write",
-    });
-    return state;
   },
 };
