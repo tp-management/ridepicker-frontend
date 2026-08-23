@@ -15,7 +15,6 @@ export const profileApi = {
       method: "PATCH",
       body: profile,
     });
-    apiChanges.notify({ scopes: ["profile"], reason: "local_profile_write" });
     return data?.user || null;
   },
 };
