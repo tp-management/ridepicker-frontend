@@ -1,0 +1,22 @@
+name: Frontend API integration
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_DATA_MODE: api
+          VITE_RIDEPICKER_API_URL: https://example.invalid
+      - run: npm run lint
+      - run: npm run typecheck
