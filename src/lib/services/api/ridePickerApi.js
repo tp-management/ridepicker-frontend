@@ -1,9 +1,8 @@
 import { apiChanges, apiRequest, encoded } from "./apiClient";
 
-
 export const ridePickerApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "ridepicker");
   },
 
   async getState(userId) {
@@ -15,7 +14,10 @@ export const ridePickerApi = {
       method: "PUT",
       body: { mode },
     });
-    apiChanges.notify();
+    apiChanges.notify({
+      scopes: ["ridepicker", "activity"],
+      reason: "local_ridepicker_write",
+    });
     return state;
   },
 };
