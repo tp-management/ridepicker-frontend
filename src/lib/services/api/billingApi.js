@@ -16,9 +16,6 @@ async function fetchSubscription(userId) {
   return normalizeSubscription(data?.subscription || null);
 }
 
-const notifyBilling = () =>
-  apiChanges.notify({ scopes: ["billing"], reason: "local_billing_write" });
-
 export const billingApi = {
   PLAN,
 
@@ -45,7 +42,6 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/activate`, {
       method: "POST",
     });
-    notifyBilling();
     return normalizeSubscription(data?.subscription || null);
   },
 
@@ -61,7 +57,6 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/cancel`, {
       method: "POST",
     });
-    notifyBilling();
     return normalizeSubscription(data?.subscription || null);
   },
 
@@ -69,7 +64,6 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/reactivate`, {
       method: "POST",
     });
-    notifyBilling();
     return normalizeSubscription(data?.subscription || null);
   },
 
