@@ -24,7 +24,7 @@ function AppShell() {
           <DemoBanner visible={demoMode} onExit={disableDemo} />
           <Outlet />
         </main>
-        <div className="h-16 sm:hidden" />
+        <div className="h-20 sm:hidden" />
       </div>
       <BottomNav />
     </div>
