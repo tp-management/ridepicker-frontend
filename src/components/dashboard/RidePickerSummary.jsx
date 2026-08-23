@@ -1,6 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { useProduct } from "@/lib/product/ProductContext";
-import { computeSummary, PERIODS, periodNoun } from "@/lib/finance";
+import { computeSummary, PERIODS } from "@/lib/finance";
 
 // Concise insight interpreting existing account/job/payment data.
 export default function RidePickerSummary({ period }) {
