@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Briefcase, MessageCircle, Power, Wifi, Activity as ActivityIcon } from "lucide-react";
+import { Briefcase, MessageCircle, Power, Wifi, AlertTriangle, Activity as ActivityIcon } from "lucide-react";
 import { useProduct } from "@/lib/product/ProductContext";
 import { formatRelative } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
@@ -21,14 +21,22 @@ const ICONS = {
 };
 
 export default function Activity() {
-  const { activity, whatsappConnected, botActive } = useProduct();
+  const { activity, activityError, whatsappConnected, botActive } = useProduct();
   const [filter, setFilter] = useState("all");
   const filtered = activity.filter((e) => filter === "all" || e.type === filter);
   const has = activity.length > 0;
 
   let empty;
   if (!has) {
-    if (!whatsappConnected) {
+    if (activityError) {
+      empty = (
+        <EmptyState
+          icon={AlertTriangle}
+          title="Could not load activity"
+          description="RidePicker could not read your activity right now. Refresh the page or sign in again."
+        />
+      );
+    } else if (!whatsappConnected) {
       empty = (
         <EmptyState
           icon={MessageCircle}

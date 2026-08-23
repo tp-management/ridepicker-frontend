@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Loader2, ArrowLeft, ChevronRight, User as UserIcon } from "lucide-react";
+import {
+  Phone,
+  Loader2,
+  ArrowLeft,
+  ChevronRight,
+  ShieldCheck,
+  User as UserIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import AuthLayout from "@/components/AuthLayout";
@@ -13,74 +20,109 @@ const postLoginDest = () => {
   return r && r !== "/" ? r : "/home";
 };
 
-/**
- * Phone-first authentication flow, shared by Login and Register.
- *
- *   1. Enter phone number → Continue.
- *   2. If a RidePicker account exists for that number, open it.
- *      Otherwise, go to Sign up (name + phone, pre-filled).
- *   3. After login / sign-up, go to Home.
- *
- * Phone-only: no passwords, no Google. RidePicker account and WhatsApp
- * connection are separate — nothing here creates a WhatsApp session.
- * Structure mirrors a real phone-OTP flow: openExistingAccount/signUp here map
- * to a verification step behind authService without redesigning this screen.
- */
+const compactPhone = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/[\s().-]+/g, "");
+
 export default function PhoneAuthForm() {
   const { applyPhoneSession } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState("phone"); // phone | signup
+  const [step, setStep] = useState("phone"); // phone | otp | signup
   const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [status, setStatus] = useState("idle"); // checking | creating | error
+  const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
   const dest = postLoginDest();
 
+  const finishAuthentication = (user) => {
+    applyPhoneSession(user);
+    navigate(dest, { replace: true });
+  };
+
   const handleContinue = async (e) => {
     e.preventDefault();
     if (!phone.trim()) return;
-    setStatus("checking");
+
+    setStatus("sending");
     setError("");
-    try {
-      const res = await authService.openExistingAccount(phone.trim());
-      if (res.status === "authenticated") {
-        applyPhoneSession(res.user);
-        navigate(dest, { replace: true });
-        return;
-      }
-      if (res.status === "error") {
-        setStatus("error");
-        setError(res.message || "Could not connect to RidePicker.");
-        return;
-      }
-      // No existing account → Sign up. Phone is pre-filled but stays editable.
+
+    const normalizedPhone = compactPhone(phone);
+    const res = await authService.requestOtp(normalizedPhone);
+
+    if (res.status === "otp_sent") {
+      setPhone(res.phone || normalizedPhone);
+      setCode("");
+      setStep("otp");
+      setStatus("idle");
+      return;
+    }
+
+    setStatus("error");
+    setError(res.message || "Could not send the verification code.");
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    const cleanCode = code.replace(/\D/g, "");
+    if (cleanCode.length !== 6) {
+      setError("Enter the 6-digit verification code.");
+      return;
+    }
+
+    setStatus("verifying");
+    setError("");
+
+    const res = await authService.verifyOtp({
+      phone,
+      code: cleanCode,
+    });
+
+    if (res.status === "authenticated") {
+      finishAuthentication(res.user);
+      return;
+    }
+
+    if (res.status === "profile_required") {
       setStatus("idle");
       setStep("signup");
-    } catch (err) {
-      setStatus("error");
-      setError(err?.message || "Could not connect to RidePicker.");
+      return;
     }
+
+    setStatus("error");
+    setError(res.message || "The verification code could not be confirmed.");
   };
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) return;
+    if (!name.trim()) return;
+
     setStatus("creating");
     setError("");
-    try {
-      const res = await authService.signUp({ name: name, phone: phone.trim() });
-      if (res.status === "authenticated") {
-        applyPhoneSession(res.user);
-        navigate(dest, { replace: true });
-        return;
-      }
-      setStatus("error");
-      setError(res.message || "Could not create account.");
-    } catch (err) {
-      setStatus("error");
-      setError(err?.message || "Could not create account.");
+
+    const res = await authService.completeProfile({ name: name.trim() });
+    if (res.status === "authenticated") {
+      finishAuthentication(res.user);
+      return;
     }
+
+    setStatus("error");
+    setError(res.message || "Could not create your RidePicker account.");
+  };
+
+  const resendCode = async () => {
+    setStatus("sending");
+    setError("");
+    const res = await authService.requestOtp(phone);
+    if (res.status === "otp_sent") {
+      setCode("");
+      setStatus("idle");
+      return;
+    }
+    setStatus("error");
+    setError(res.message || "Could not resend the verification code.");
   };
 
   if (step === "signup") {
@@ -88,14 +130,19 @@ export default function PhoneAuthForm() {
       <AuthLayout
         icon={UserIcon}
         title="Create your RidePicker account"
-        subtitle="Add your name to finish setting up your account."
+        subtitle="Your phone is verified. Add your name to finish setup."
       >
         {error && (
-          <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+          <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
         )}
+
         <form onSubmit={handleCreate} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="name" className="text-sm font-medium text-foreground">Name</label>
+            <label htmlFor="name" className="text-sm font-medium text-foreground">
+              Name
+            </label>
             <Input
               id="name"
               type="text"
@@ -108,57 +155,134 @@ export default function PhoneAuthForm() {
               required
             />
           </div>
+
           <div className="space-y-2">
-            <label htmlFor="signup-phone" className="text-sm font-medium text-foreground">Phone number</label>
+            <label htmlFor="verified-phone" className="text-sm font-medium text-foreground">
+              Verified phone number
+            </label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                id="signup-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+44 7700 900123"
+                id="verified-phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                readOnly
                 className="h-12 pl-10"
-                required
               />
             </div>
           </div>
+
           <Button
             type="submit"
             className="h-12 w-full font-medium"
-            disabled={status === "creating" || !name.trim() || !phone.trim()}
+            disabled={status === "creating" || !name.trim()}
           >
             {status === "creating" ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…</>
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…
+              </>
             ) : (
               "Create account"
             )}
           </Button>
         </form>
+      </AuthLayout>
+    );
+  }
 
-        <button
-          onClick={() => { setStep("phone"); setStatus("idle"); setError(""); }}
-          className="mt-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
+  if (step === "otp") {
+    return (
+      <AuthLayout
+        icon={ShieldCheck}
+        title="Verify your phone"
+        subtitle={`Enter the 6-digit code sent to ${phone}.`}
+      >
+        {error && (
+          <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="otp" className="text-sm font-medium text-foreground">
+              Verification code
+            </label>
+            <Input
+              id="otp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              maxLength={6}
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="h-12 text-center text-lg tracking-[0.35em]"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="h-12 w-full font-medium"
+            disabled={status === "verifying" || code.length !== 6}
+          >
+            {status === "verifying" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying…
+              </>
+            ) : (
+              <>Verify <ChevronRight className="ml-1 h-4 w-4" /></>
+            )}
+          </Button>
+        </form>
+
+        <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+          <button
+            type="button"
+            onClick={() => {
+              setStep("phone");
+              setCode("");
+              setStatus("idle");
+              setError("");
+            }}
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Change number
+          </button>
+
+          <button
+            type="button"
+            onClick={resendCode}
+            disabled={status === "sending"}
+            className="font-medium text-primary hover:underline disabled:opacity-50"
+          >
+            {status === "sending" ? "Sending…" : "Resend code"}
+          </button>
+        </div>
       </AuthLayout>
     );
   }
 
   return (
-    <AuthLayout icon={Phone} title="Welcome to RidePicker" subtitle="Enter your phone number to continue.">
+    <AuthLayout
+      icon={Phone}
+      title="Welcome to RidePicker"
+      subtitle="Enter your phone number to receive a secure login code."
+    >
       {error && (
-        <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+        <div className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
 
       <form onSubmit={handleContinue} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="phone" className="text-sm font-medium text-foreground">Phone number</label>
+          <label htmlFor="phone" className="text-sm font-medium text-foreground">
+            Phone number
+          </label>
           <div className="relative">
-            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="phone"
               type="tel"
@@ -173,9 +297,16 @@ export default function PhoneAuthForm() {
             />
           </div>
         </div>
-        <Button type="submit" className="h-12 w-full font-medium" disabled={status === "checking" || !phone.trim()}>
-          {status === "checking" ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking…</>
+
+        <Button
+          type="submit"
+          className="h-12 w-full font-medium"
+          disabled={status === "sending" || !phone.trim()}
+        >
+          {status === "sending" ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending code…
+            </>
           ) : (
             <>Continue <ChevronRight className="ml-1 h-4 w-4" /></>
           )}
