@@ -12,7 +12,10 @@ const NAV = [
 
 export default function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white sm:hidden">
+    <nav
+      className="fixed inset-x-2 z-30 flex rounded-xl border border-slate-200 bg-white shadow-sm sm:hidden"
+      style={{ bottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+    >
       {NAV.map((item) => (
         <NavLink
           key={item.to}
@@ -20,8 +23,8 @@ export default function BottomNav() {
           end={item.end}
           className={({ isActive }) =>
             cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors",
-              isActive ? "text-emerald-600" : "text-slate-400"
+              "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors first:rounded-l-xl last:rounded-r-xl",
+              isActive ? "bg-emerald-50 text-emerald-600" : "text-slate-400"
             )
           }
         >

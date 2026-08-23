@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { User, Power, MessageCircle, LogOut, ChevronRight, CreditCard, Save, RotateCcw } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  LogOut,
+  MessageCircle,
+  Power,
+  RotateCcw,
+  Save,
+  User,
+} from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useProduct } from "@/lib/product/ProductContext";
 import { useRidePickerMode } from "@/lib/product/useRidePickerMode";
@@ -57,13 +68,13 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Settings</h1>
         <p className="mt-1 text-sm text-slate-500">Manage your account and RidePicker preferences.</p>
       </div>
 
-      <Section icon={User} title="Profile">
+      <Section icon={User} title="Profile" summary={user?.full_name || "Account details"}>
         <div className="space-y-3">
           <div>
             <label htmlFor="profile-name" className="text-sm text-slate-500">
@@ -91,7 +102,11 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section icon={Power} title="RidePicker preferences">
+      <Section
+        icon={Power}
+        title="RidePicker preferences"
+        summary={mode === "assist" ? "Assist" : mode === "autopilot" ? "Autopilot" : "Off"}
+      >
         <div className="text-sm font-medium text-slate-900">RidePicker mode</div>
         <div className="text-sm text-slate-500">
           {whatsappConnected
@@ -117,7 +132,11 @@ export default function Settings() {
         </ul>
       </Section>
 
-      <Section icon={CreditCard} title="Billing">
+      <Section
+        icon={CreditCard}
+        title="Billing"
+        summary={`${STATUS_LABEL[subStatus]} · €180 / month`}
+      >
         <div className="space-y-0.5">
           <Row label="Plan" value="RidePicker Premium" />
           <Row label="Price" value="€180 / month" />
@@ -139,7 +158,11 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section icon={MessageCircle} title="WhatsApp">
+      <Section
+        icon={MessageCircle}
+        title="WhatsApp"
+        summary={whatsappConnected ? "Connected" : "Not connected"}
+      >
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-sm font-medium text-slate-900">
@@ -160,7 +183,7 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section icon={LogOut} title="Account">
+      <Section icon={LogOut} title="Account" summary="Sign out and development tools">
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setConfirmLogout(true)}
@@ -207,15 +230,42 @@ export default function Settings() {
   );
 }
 
-function Section({ icon: Icon, title, children }) {
+function Section({ icon: Icon, title, summary, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      </div>
-      {children}
-    </section>
+    <motion.section layout className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-slate-50/70"
+      >
+        <Icon className="h-4 w-4 shrink-0 text-slate-400" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+          {summary && <div className="mt-0.5 truncate text-xs text-slate-400">{summary}</div>}
+        </div>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="h-4 w-4 text-slate-400" />
+        </motion.div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-slate-100 px-5 pb-5 pt-4">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.section>
   );
 }
 
