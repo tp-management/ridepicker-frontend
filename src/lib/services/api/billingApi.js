@@ -7,7 +7,6 @@ function normalizeSubscription(subscription) {
   if (!subscription) return null;
   return {
     ...subscription,
-    // The current UI calls the not-yet-paid state "none".
     status: subscription.status === "payment_required" ? "none" : subscription.status,
   };
 }
@@ -16,6 +15,9 @@ async function fetchSubscription(userId) {
   const data = await apiRequest(`/api/users/${encoded(userId)}/billing`);
   return normalizeSubscription(data?.subscription || null);
 }
+
+const notifyBilling = () =>
+  apiChanges.notify({ scopes: ["billing"], reason: "local_billing_write" });
 
 export const billingApi = {
   PLAN,
@@ -36,14 +38,14 @@ export const billingApi = {
   },
 
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "billing");
   },
 
   async activate(user) {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/activate`, {
       method: "POST",
     });
-    apiChanges.notify();
+    notifyBilling();
     return normalizeSubscription(data?.subscription || null);
   },
 
@@ -59,7 +61,7 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/cancel`, {
       method: "POST",
     });
-    apiChanges.notify();
+    notifyBilling();
     return normalizeSubscription(data?.subscription || null);
   },
 
@@ -67,11 +69,9 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/reactivate`, {
       method: "POST",
     });
-    apiChanges.notify();
+    notifyBilling();
     return normalizeSubscription(data?.subscription || null);
   },
 
-  reset() {
-    // There is deliberately no production "reset billing" endpoint.
-  },
+  reset() {},
 };
