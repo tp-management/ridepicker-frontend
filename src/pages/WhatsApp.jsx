@@ -129,7 +129,7 @@ export default function WhatsApp() {
         </div>
       )}
 
-      <AssistPreferencesCard enabled={assistPreferencesEnabled} />
+      <AssistPreferencesCard enabled={assistPreferencesEnabled} userId={user?.id || null} />
 
       <WhatsappDemoControls status={status} onSimulateDrop={simulateDrop} onReset={reset} />
 
