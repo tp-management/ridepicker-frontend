@@ -23,9 +23,13 @@ function remember(userId, session, notifyOnChange = false) {
   const previous = snapshots.get(userId);
   snapshots.set(userId, next);
   if (notifyOnChange && previous !== undefined && previous !== next) {
-    apiChanges.notify();
+    apiChanges.notify({ scopes: ["whatsapp"], reason: "whatsapp_snapshot_changed" });
   }
   return session;
+}
+
+function notifyWhatsapp(scopes = ["whatsapp"]) {
+  apiChanges.notify({ scopes, reason: "local_whatsapp_write" });
 }
 
 function withQuery(path, values = {}) {
@@ -40,7 +44,7 @@ function withQuery(path, values = {}) {
 
 export const whatsappApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "whatsapp");
   },
 
   async getSession(userId) {
@@ -59,7 +63,7 @@ export const whatsappApi = {
       body: {},
     });
     const session = remember(userId, sessionFrom(data));
-    apiChanges.notify();
+    notifyWhatsapp();
     return session;
   },
 
@@ -69,7 +73,7 @@ export const whatsappApi = {
       body: {},
     });
     const session = remember(userId, sessionFrom(data));
-    apiChanges.notify();
+    notifyWhatsapp();
     return session;
   },
 
@@ -78,14 +82,14 @@ export const whatsappApi = {
       method: "POST",
     });
     const session = remember(userId, sessionFrom(data));
-    apiChanges.notify();
+    notifyWhatsapp();
     return session;
   },
 
   async disconnect(userId) {
     const data = await apiRequest(basePath(userId), { method: "DELETE" });
     const session = remember(userId, sessionFrom(data));
-    apiChanges.notify();
+    notifyWhatsapp(["whatsapp", "activity", "ridepicker"]);
     return session;
   },
 
@@ -94,7 +98,7 @@ export const whatsappApi = {
       method: "POST",
     });
     const session = remember(userId, sessionFrom(data));
-    apiChanges.notify();
+    notifyWhatsapp();
     return session;
   },
 
@@ -146,12 +150,14 @@ export const whatsappApi = {
         body: { text },
       }
     );
-    apiChanges.notify();
+    apiChanges.notify({
+      scopes: ["messages", "activity"],
+      reason: "local_whatsapp_message",
+    });
     return data?.message || null;
   },
 
   async simulateDrop(userId) {
-    // No production endpoint intentionally exists for this dev-only action.
     return whatsappApi.getSession(userId);
   },
 };
