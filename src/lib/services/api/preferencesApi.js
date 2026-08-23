@@ -4,7 +4,7 @@ const pathFor = (userId) => `/api/users/${encoded(userId)}/preferences`;
 
 export const preferencesApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "preferences");
   },
 
   async get(userId) {
@@ -17,7 +17,6 @@ export const preferencesApi = {
       method: "PATCH",
       body: patch,
     });
-    apiChanges.notify();
     return data?.preferences || null;
   },
 };

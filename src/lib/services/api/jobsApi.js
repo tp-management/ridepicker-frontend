@@ -5,7 +5,7 @@ const jobPath = (userId, jobId) => `${userPath(userId)}/${encoded(jobId)}`;
 
 export const jobsApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "jobs");
   },
 
   async list(userId) {
@@ -23,7 +23,6 @@ export const jobsApi = {
       method: "POST",
       body: input,
     });
-    apiChanges.notify();
     return data?.job || null;
   },
 
@@ -32,7 +31,6 @@ export const jobsApi = {
       method: "PATCH",
       body: patch,
     });
-    apiChanges.notify();
     return data?.job || null;
   },
 
@@ -40,7 +38,6 @@ export const jobsApi = {
     const data = await apiRequest(jobPath(userId, jobId), {
       method: "DELETE",
     });
-    apiChanges.notify();
     return Boolean(data?.ok);
   },
 
@@ -49,7 +46,6 @@ export const jobsApi = {
       method: "PATCH",
       body: { status },
     });
-    apiChanges.notify();
     return data?.job || null;
   },
 
@@ -58,7 +54,6 @@ export const jobsApi = {
       method: "PATCH",
       body: patch,
     });
-    apiChanges.notify();
     return data?.job || null;
   },
 
@@ -77,7 +72,6 @@ export const jobsApi = {
       method: "POST",
       body: expense,
     });
-    apiChanges.notify();
     return data?.job || null;
   },
 
@@ -89,7 +83,6 @@ export const jobsApi = {
         body: patch,
       }
     );
-    apiChanges.notify();
     return data?.job || null;
   },
 
@@ -98,7 +91,6 @@ export const jobsApi = {
       `${jobPath(userId, jobId)}/expenses/${encoded(expenseId)}`,
       { method: "DELETE" }
     );
-    apiChanges.notify();
     return data?.job || null;
   },
 };

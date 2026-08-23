@@ -3,7 +3,6 @@ import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { MobileStatusBar } from "./GlobalStatus";
 import DemoBanner from "@/components/DemoBanner";
-import LiveDataHeartbeat from "@/components/LiveDataHeartbeat";
 import { ProductProvider, useProduct } from "@/lib/product/ProductContext";
 
 export default function AppLayout() {
@@ -18,7 +17,6 @@ function AppShell() {
   const { demoMode, disableDemo } = useProduct();
   return (
     <div className="min-h-screen bg-slate-50">
-      <LiveDataHeartbeat />
       <Sidebar />
       <div className="sm:pl-60">
         <MobileStatusBar />

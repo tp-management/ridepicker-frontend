@@ -7,6 +7,7 @@ import { activityService } from "@/lib/services/activityService";
 import { ridePickerService } from "@/lib/services/ridePickerService";
 import { whatsappService } from "@/lib/services/whatsappService";
 import { billingService } from "@/lib/services/billingService";
+import { liveEventsService } from "@/lib/services/liveEventsService";
 import { isApiMode } from "@/lib/config";
 import { JOBS as DEMO_JOBS, ACTIVITY as DEMO_ACTIVITY } from "@/lib/mockData";
 
@@ -18,23 +19,19 @@ const MODE_DETAIL = {
   autopilot: "Monitoring and alerting. Autonomous contacting coming soon.",
 };
 
-/**
- * Central product/service layer.
- *
- * Concepts kept separate: currentUser (from auth), whatsappConnection,
- * ridePickerMode, jobs, activity. This provider talks ONLY to the service
- * facades in src/lib/services/* — it never imports mockDataStore. Mock
- * implementations live behind those services; replace them with Supabase/API
- * adapters when VITE_DATA_MODE=api without changing the consuming UI.
- */
 export function ProductProvider({ children }) {
   const { user, applyPhoneSession } = useAuth();
   const demoModeRef = useRef(false);
 
+  // One persistent server push stream drives all production refreshes. It only
+  // carries invalidation scopes; each service fetches its own fresh data when
+  // its scope changes. There is no interval-based account polling.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    return liveEventsService.connect(user.id);
+  }, [user?.id]);
+
   // ---- WhatsApp session ----
-  // Driven by whatsappService (models the real RidePicker backend lifecycle).
-  // Adaptive polling: ~1.5s while pairing/reconnecting, ~10s once connected,
-  // stopped when the provider unmounts. The service also notifies on change.
   const [waSession, setWaSessionRaw] = useState(null);
   const [whatsappLoading, setWhatsappLoading] = useState(true);
   const setWaSession = useCallback((next) => {
@@ -60,62 +57,39 @@ export function ProductProvider({ children }) {
     if (!uid) {
       setWaSession(null);
       setWhatsappLoading(false);
-      return;
+      return undefined;
     }
+
     let active = true;
-    let timer;
-    const tick = async () => {
-      if (!active) return;
-      let status = null;
+    setWhatsappLoading(true);
+
+    const refresh = async (initial = false) => {
       try {
-        const s = await whatsappService.refreshSession(uid);
-        if (active) {
-          setWaSession(s);
-          setWhatsappLoading(false);
-        }
-        status = s?.status || null;
+        const session = await whatsappService.getSession(uid);
+        if (active) setWaSession(session);
       } catch {
-        // ignore transient poll errors; next tick retries
+        // Keep the last known state. A later push or reconnect can recover it.
+      } finally {
+        if (active && initial) setWhatsappLoading(false);
       }
-      if (!active) return;
-      const fast = status === "starting" || status === "qr" || status === "reconnecting";
-      timer = setTimeout(tick, fast ? 1500 : 10000);
     };
-    // Initial async load, then start polling.
-    (async () => {
-      try {
-        const s = await whatsappService.getSession(uid);
-        if (active) {
-          setWaSession(s);
-          setWhatsappLoading(false);
-        }
-      } catch {
-        if (active) setWhatsappLoading(false);
-      }
-      tick();
-    })();
-    const uw = whatsappService.subscribe(() => {
-      if (!active) return;
-      whatsappService
-        .getSession(uid)
-        .then((s) => setWaSession(s))
-        .catch(() => {});
+
+    void refresh(true);
+    const unsubscribe = whatsappService.subscribe(() => {
+      if (active) void refresh(false);
     });
+
     return () => {
       active = false;
-      clearTimeout(timer);
-      uw();
+      unsubscribe();
     };
   }, [user?.id, setWaSession]);
 
   // ---- RidePicker mode ----
-  // Loaded asynchronously from ridePickerService (see the data effect below) so
-  // an API adapter can fetch it over HTTP without changing this provider.
   const [mode, setModeState] = useState("off");
   const [botStartedAt, setBotStartedAt] = useState(null);
 
   // ---- Subscription ----
-  // Loaded asynchronously from billingService (see the data effect below).
   const [subscription, setSubscription] = useState(null);
   const hasActiveSubscription =
     subscription?.status === "active" ||
@@ -133,9 +107,8 @@ export function ProductProvider({ children }) {
   const [jobsError, setJobsError] = useState(null);
   const [activityError, setActivityError] = useState(null);
 
-  // Load all account data from the services and subscribe to changes. This is
-  // the ONLY place that fetches jobs/activity/mode/subscription; pages read from
-  // context. mockDataStore is never imported here.
+  // Initial reads happen once. After that each domain refreshes only when the
+  // live stream names that domain or a local write emits the same scope.
   useEffect(() => {
     const uid = user?.id;
     if (!uid) {
@@ -144,66 +117,101 @@ export function ProductProvider({ children }) {
       setModeState("off");
       setBotStartedAt(null);
       setSubscription(null);
-      return;
+      return undefined;
     }
     let active = true;
+    let lastProfileSnapshot = null;
 
-    // Initial load shows a loading state; later subscription-driven refreshes
-    // (after writes) update the data silently without flickering the loader.
     const loadJobs = async (withLoading) => {
       try {
         if (withLoading) setJobsLoading(true);
-        const j = await jobsService.list(uid);
-        if (active) setRealJobs(j);
-      } catch (e) {
-        if (active) setJobsError(e);
+        const jobs = await jobsService.list(uid);
+        if (active) {
+          setRealJobs(jobs);
+          setJobsError(null);
+        }
+      } catch (error) {
+        if (active) setJobsError(error);
       } finally {
-        if (withLoading) setJobsLoading(false);
+        if (withLoading && active) setJobsLoading(false);
       }
     };
+
     const refreshJobs = () => loadJobs(false);
+
     const refreshActivity = async () => {
       try {
-        const a = await activityService.list(uid);
-        if (active) setRealActivity(a);
-      } catch (e) {
-        if (active) setActivityError(e);
+        const activity = await activityService.list(uid);
+        if (active) {
+          setRealActivity(activity);
+          setActivityError(null);
+        }
+      } catch (error) {
+        if (active) setActivityError(error);
       }
     };
+
     const refreshMode = async () => {
       try {
-        const st = await ridePickerService.getState(uid);
+        const state = await ridePickerService.getState(uid);
         if (!active) return;
-        setModeState(st.mode);
-        setBotStartedAt(st.botStartedAt);
+        setModeState(state.mode);
+        setBotStartedAt(state.botStartedAt);
       } catch {
-        // leave current mode on read failure
+        // Keep the last known mode until the next push/reconnect refresh.
       }
     };
+
     const refreshSub = async () => {
       try {
         const sub = await billingService.getSubscription(user);
         if (active) setSubscription(sub);
       } catch {
-        // leave current subscription on read failure
+        // Keep the last known subscription until the next push.
       }
     };
 
-    loadJobs(true);
-    refreshActivity();
-    refreshMode();
-    refreshSub();
+    const refreshProfile = async () => {
+      try {
+        const profile = await profileService.get(uid);
+        if (!active || !profile) return;
 
-    const uj = jobsService.subscribe(refreshJobs);
-    const ua = activityService.subscribe(refreshActivity);
-    const ur = ridePickerService.subscribe(refreshMode);
-    const ub = billingService.subscribe(refreshSub);
+        const snapshot = JSON.stringify(profile);
+        if (snapshot === lastProfileSnapshot) return;
+        lastProfileSnapshot = snapshot;
+
+        applyPhoneSession({
+          ...user,
+          full_name: profile.name ?? user?.full_name ?? "",
+          name: profile.name ?? user?.name ?? "",
+          phone: profile.phone ?? user?.phone ?? "",
+          email: profile.email ?? user?.email ?? "",
+          profile,
+        });
+      } catch {
+        // Keep the current auth/profile view until the next push.
+      }
+    };
+
+    void loadJobs(true);
+    void refreshActivity();
+    void refreshMode();
+    void refreshSub();
+    void refreshProfile();
+
+    const unsubscribeJobs = jobsService.subscribe(refreshJobs);
+    const unsubscribeActivity = activityService.subscribe(refreshActivity);
+    const unsubscribeMode = ridePickerService.subscribe(refreshMode);
+    const unsubscribeBilling = billingService.subscribe(refreshSub);
+    const unsubscribeProfile = profileService.subscribe(refreshProfile);
+
     return () => {
       active = false;
-      uj();
-      ua();
-      ur();
-      ub();
+      unsubscribeJobs();
+      unsubscribeActivity();
+      unsubscribeMode();
+      unsubscribeBilling();
+      unsubscribeProfile();
     };
   }, [user?.id]);
 
@@ -229,7 +237,6 @@ export function ProductProvider({ children }) {
         ...ev,
       };
       if (demoModeRef.current) setDemoActivity((prev) => [entry, ...prev]);
-      // Fire-and-forget; the activity service subscription updates realActivity.
       activityService.add(user?.id, entry).catch(() => {});
     },
     [user?.id]
@@ -237,7 +244,6 @@ export function ProductProvider({ children }) {
 
   const setMode = useCallback(
     (m) => {
-      // Autopilot is not available yet — never let the app enter that state.
       if (m === "autopilot") return false;
       if (m !== "off" && waStatus !== "connected") return false;
       if (m !== "off" && !hasActiveSubscription) return false;
@@ -264,24 +270,28 @@ export function ProductProvider({ children }) {
     setWaSession(session);
     return session;
   }, [user?.id, setWaSession]);
+
   const disconnectWhatsApp = useCallback(async () => {
     if (!user?.id) return null;
     const session = await whatsappService.disconnect(user.id);
     setWaSession(session);
     return session;
   }, [user?.id, setWaSession]);
+
   const simulateDrop = useCallback(async () => {
     if (!user?.id) return null;
     const session = await whatsappService.simulateDrop(user.id);
     setWaSession(session);
     return session;
   }, [user?.id, setWaSession]);
+
   const retryReconnect = useCallback(async () => {
     if (!user?.id) return null;
     const session = await whatsappService.retryReconnect(user.id);
     setWaSession(session);
     return session;
   }, [user?.id, setWaSession]);
+
   const refreshPairingCode = useCallback(async () => {
     if (!user?.id) return null;
     const request = whatsappService.refreshPairingCode || whatsappService.startSession;
@@ -289,6 +299,7 @@ export function ProductProvider({ children }) {
     setWaSession(session);
     return session;
   }, [user?.id, setWaSession]);
+
   const refreshQr = useCallback(async () => {
     if (!user?.id) return null;
     const session = await whatsappService.refreshQr(user.id);
@@ -296,9 +307,6 @@ export function ProductProvider({ children }) {
     return session;
   }, [user?.id, setWaSession]);
 
-  // Log WhatsApp lifecycle events as the session status changes. The first
-  // settled status (after the async session load) seeds the "previous" value
-  // so loading an already-connected session does NOT emit a spurious event.
   const prevWaStatusRef = useRef(null);
   const waStatusSeededRef = useRef(false);
   useEffect(() => {
@@ -311,8 +319,6 @@ export function ProductProvider({ children }) {
     const prev = prevWaStatusRef.current;
     if (prev === waStatus) return;
     prevWaStatusRef.current = waStatus;
-    // The real backend writes WhatsApp lifecycle activity itself. Mock mode
-    // keeps the client-side activity simulation.
     if (isApiMode()) return;
     if (waStatus === "connected") {
       addActivity({
@@ -327,10 +333,6 @@ export function ProductProvider({ children }) {
     }
   }, [waStatus, whatsappLoading, addActivity]);
 
-  // Permanent connection loss (user disconnect / logged out) stops monitoring.
-  // A TEMPORARY drop (reconnecting) does NOT turn RidePicker off — when the
-  // connection is restored, Assist resumes automatically. Guarded on
-  // whatsappLoading so the initial async session load can't trigger it.
   useEffect(() => {
     if (whatsappLoading) return;
     if (waStatus === "disconnected" && mode !== "off") {

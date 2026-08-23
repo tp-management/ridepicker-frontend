@@ -2,7 +2,7 @@ import { apiChanges, apiRequest, encoded } from "./apiClient";
 
 export const activityApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "activity");
   },
 
   async list(userId) {
@@ -16,7 +16,6 @@ export const activityApi = {
       method: "POST",
       body: entry,
     });
-    apiChanges.notify();
     return data?.entry || null;
   },
 
@@ -26,7 +25,6 @@ export const activityApi = {
       `/api/users/${encoded(userId)}/activity/${encoded(activityId)}`,
       { method: "DELETE" }
     );
-    apiChanges.notify();
     return true;
   },
 };

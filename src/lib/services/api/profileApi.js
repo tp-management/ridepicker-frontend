@@ -1,9 +1,8 @@
 import { apiChanges, apiRequest, encoded } from "./apiClient";
 
-
 export const profileApi = {
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "profile");
   },
 
   async get(userId) {
@@ -16,7 +15,6 @@ export const profileApi = {
       method: "PATCH",
       body: profile,
     });
-    apiChanges.notify();
     return data?.user || null;
   },
 };

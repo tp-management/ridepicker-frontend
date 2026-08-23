@@ -7,7 +7,6 @@ function normalizeSubscription(subscription) {
   if (!subscription) return null;
   return {
     ...subscription,
-    // The current UI calls the not-yet-paid state "none".
     status: subscription.status === "payment_required" ? "none" : subscription.status,
   };
 }
@@ -36,14 +35,13 @@ export const billingApi = {
   },
 
   subscribe(listener) {
-    return apiChanges.subscribe(listener);
+    return apiChanges.subscribe(listener, "billing");
   },
 
   async activate(user) {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/activate`, {
       method: "POST",
     });
-    apiChanges.notify();
     return normalizeSubscription(data?.subscription || null);
   },
 
@@ -59,7 +57,6 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/cancel`, {
       method: "POST",
     });
-    apiChanges.notify();
     return normalizeSubscription(data?.subscription || null);
   },
 
@@ -67,11 +64,8 @@ export const billingApi = {
     const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/reactivate`, {
       method: "POST",
     });
-    apiChanges.notify();
     return normalizeSubscription(data?.subscription || null);
   },
 
-  reset() {
-    // There is deliberately no production "reset billing" endpoint.
-  },
+  reset() {},
 };
