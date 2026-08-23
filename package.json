@@ -9,6 +9,7 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
+    "check:lifecycle": "node scripts/check-whatsapp-mode-lifecycle.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -53,7 +54,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.5.2",
     "framer-motion": "^11.16.4",
-    "html2canvas": "^1.4.1",
+    "html2canvas": "^1.4.2",
     "input-otp": "^1.4.2",
     "jspdf": "^4.2.1",
     "lodash": "^4.17.21",
