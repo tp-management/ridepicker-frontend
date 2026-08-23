@@ -16,7 +16,6 @@ export const activityApi = {
       method: "POST",
       body: entry,
     });
-    apiChanges.notify({ scopes: ["activity"], reason: "local_activity_write" });
     return data?.entry || null;
   },
 
@@ -26,7 +25,6 @@ export const activityApi = {
       `/api/users/${encoded(userId)}/activity/${encoded(activityId)}`,
       { method: "DELETE" }
     );
-    apiChanges.notify({ scopes: ["activity"], reason: "local_activity_delete" });
     return true;
   },
 };
