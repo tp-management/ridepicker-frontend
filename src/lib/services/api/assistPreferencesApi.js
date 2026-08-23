@@ -1,8 +1,12 @@
-import { apiRequest, encoded } from "./apiClient";
+import { apiChanges, apiRequest, encoded } from "./apiClient";
 
 const pathFor = (userId) => `/api/users/${encoded(userId)}/assist-preferences`;
 
 export const assistPreferencesApi = {
+  subscribe(listener) {
+    return apiChanges.subscribe(listener);
+  },
+
   async get(userId) {
     const data = await apiRequest(pathFor(userId));
     return data?.assistPreferences || { keywords: [] };
@@ -13,6 +17,7 @@ export const assistPreferencesApi = {
       method: "PUT",
       body: { keywords },
     });
+    apiChanges.notify();
     return data?.assistPreferences || { keywords: [] };
   },
 };
