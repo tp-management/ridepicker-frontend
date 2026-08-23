@@ -1,6 +1,5 @@
 import { apiChanges, apiRequest, encoded } from "./apiClient";
 
-
 export const activityApi = {
   subscribe(listener) {
     return apiChanges.subscribe(listener);
@@ -19,5 +18,15 @@ export const activityApi = {
     });
     apiChanges.notify();
     return data?.entry || null;
+  },
+
+  async remove(userId, activityId) {
+    if (!userId || activityId === null || activityId === undefined) return false;
+    await apiRequest(
+      `/api/users/${encoded(userId)}/activity/${encoded(activityId)}`,
+      { method: "DELETE" }
+    );
+    apiChanges.notify();
+    return true;
   },
 };
