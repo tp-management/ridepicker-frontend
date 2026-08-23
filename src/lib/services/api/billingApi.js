@@ -17,6 +17,12 @@ async function fetchSubscription(userId) {
   return normalizeSubscription(data?.subscription || null);
 }
 
+function providerManagedBilling() {
+  const error = new Error("Billing changes must be completed through the payment provider.");
+  error.status = 403;
+  throw error;
+}
+
 export const billingApi = {
   PLAN,
 
@@ -39,12 +45,8 @@ export const billingApi = {
     return apiChanges.subscribe(listener);
   },
 
-  async activate(user) {
-    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/activate`, {
-      method: "POST",
-    });
-    apiChanges.notify();
-    return normalizeSubscription(data?.subscription || null);
+  async activate() {
+    return providerManagedBilling();
   },
 
   async simulatePaymentFailure(user) {
@@ -55,20 +57,12 @@ export const billingApi = {
     return fetchSubscription(user?.id);
   },
 
-  async cancel(user) {
-    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/cancel`, {
-      method: "POST",
-    });
-    apiChanges.notify();
-    return normalizeSubscription(data?.subscription || null);
+  async cancel() {
+    return providerManagedBilling();
   },
 
-  async reactivate(user) {
-    const data = await apiRequest(`/api/users/${encoded(user.id)}/billing/reactivate`, {
-      method: "POST",
-    });
-    apiChanges.notify();
-    return normalizeSubscription(data?.subscription || null);
+  async reactivate() {
+    return providerManagedBilling();
   },
 
   reset() {
