@@ -1,4 +1,5 @@
 import { config } from "@/lib/config";
+import { getAccessToken } from "./supabasePhoneAuth";
 
 function apiBase() {
   const base = String(config.ridePickerApiUrl || "").trim().replace(/\/+$/, "");
@@ -9,13 +10,15 @@ function apiBase() {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = "GET", body, headers = {}, signal } = options;
+  const { method = "GET", body, headers = {}, signal, auth = true } = options;
+  const accessToken = auth ? await getAccessToken() : null;
   const response = await fetch(`${apiBase()}${path}`, {
     method,
     signal,
     headers: {
       Accept: "application/json",
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...headers,
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
