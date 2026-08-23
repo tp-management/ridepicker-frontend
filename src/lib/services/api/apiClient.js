@@ -8,9 +8,13 @@ function apiBase() {
   return base;
 }
 
+export function apiUrl(path = "") {
+  return `${apiBase()}${path}`;
+}
+
 export async function apiRequest(path, options = {}) {
   const { method = "GET", body, headers = {}, signal } = options;
-  const response = await fetch(`${apiBase()}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method,
     signal,
     headers: {
@@ -45,18 +49,45 @@ export function encoded(value) {
   return encodeURIComponent(String(value));
 }
 
+function normalizeChange(change) {
+  if (!change || !Array.isArray(change.scopes) || !change.scopes.length) {
+    return { ...(change || {}), scopes: ["all"] };
+  }
+  return {
+    ...change,
+    scopes: [...new Set(change.scopes.map((scope) => String(scope || "").trim()).filter(Boolean))],
+  };
+}
+
 export function createChangeEmitter() {
   const listeners = new Set();
+
   return {
-    subscribe(listener) {
+    subscribe(listener, scopes = null) {
       if (typeof listener !== "function") return () => {};
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+      const wanted = scopes
+        ? new Set((Array.isArray(scopes) ? scopes : [scopes]).map(String))
+        : null;
+      const entry = { listener, wanted };
+      listeners.add(entry);
+      return () => listeners.delete(entry);
     },
-    notify() {
-      listeners.forEach((listener) => {
+
+    notify(change = null) {
+      const normalized = normalizeChange(change);
+      const changed = new Set(normalized.scopes);
+
+      listeners.forEach(({ listener, wanted }) => {
+        if (
+          wanted &&
+          !changed.has("all") &&
+          ![...wanted].some((scope) => changed.has(scope))
+        ) {
+          return;
+        }
+
         try {
-          listener();
+          listener(normalized);
         } catch {
           // A subscriber should never break the service that triggered it.
         }
