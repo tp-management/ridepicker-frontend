@@ -18,18 +18,9 @@ function snapshot(session) {
   });
 }
 
-function remember(userId, session, notifyOnChange = false) {
-  const next = snapshot(session);
-  const previous = snapshots.get(userId);
-  snapshots.set(userId, next);
-  if (notifyOnChange && previous !== undefined && previous !== next) {
-    apiChanges.notify({ scopes: ["whatsapp"], reason: "whatsapp_snapshot_changed" });
-  }
+function remember(userId, session) {
+  snapshots.set(userId, snapshot(session));
   return session;
-}
-
-function notifyWhatsapp(scopes = ["whatsapp"]) {
-  apiChanges.notify({ scopes, reason: "local_whatsapp_write" });
 }
 
 function withQuery(path, values = {}) {
@@ -54,7 +45,7 @@ export const whatsappApi = {
 
   async refreshSession(userId) {
     const data = await apiRequest(basePath(userId));
-    return remember(userId, sessionFrom(data), true);
+    return remember(userId, sessionFrom(data));
   },
 
   async startSession(userId) {
@@ -62,9 +53,7 @@ export const whatsappApi = {
       method: "POST",
       body: {},
     });
-    const session = remember(userId, sessionFrom(data));
-    notifyWhatsapp();
-    return session;
+    return remember(userId, sessionFrom(data));
   },
 
   async refreshPairingCode(userId) {
@@ -72,34 +61,26 @@ export const whatsappApi = {
       method: "POST",
       body: {},
     });
-    const session = remember(userId, sessionFrom(data));
-    notifyWhatsapp();
-    return session;
+    return remember(userId, sessionFrom(data));
   },
 
   async refreshQr(userId) {
     const data = await apiRequest(`${basePath(userId)}/refresh-qr`, {
       method: "POST",
     });
-    const session = remember(userId, sessionFrom(data));
-    notifyWhatsapp();
-    return session;
+    return remember(userId, sessionFrom(data));
   },
 
   async disconnect(userId) {
     const data = await apiRequest(basePath(userId), { method: "DELETE" });
-    const session = remember(userId, sessionFrom(data));
-    notifyWhatsapp(["whatsapp", "activity", "ridepicker"]);
-    return session;
+    return remember(userId, sessionFrom(data));
   },
 
   async retryReconnect(userId) {
     const data = await apiRequest(`${basePath(userId)}/reconnect`, {
       method: "POST",
     });
-    const session = remember(userId, sessionFrom(data));
-    notifyWhatsapp();
-    return session;
+    return remember(userId, sessionFrom(data));
   },
 
   async listChats(userId, { limit = 100 } = {}) {
@@ -150,10 +131,6 @@ export const whatsappApi = {
         body: { text },
       }
     );
-    apiChanges.notify({
-      scopes: ["messages", "activity"],
-      reason: "local_whatsapp_message",
-    });
     return data?.message || null;
   },
 
