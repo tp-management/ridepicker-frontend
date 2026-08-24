@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BadgePoundSterling } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 const MIN_PRICE = 0;
 const MAX_PRICE = 300;
@@ -13,7 +14,6 @@ function formatMinimumPrice(value) {
 
 export default function AssistPricePreferenceCard({ enabled }) {
   const [minimumPrice, setMinimumPrice] = useState(MIN_PRICE);
-  const progress = ((minimumPrice - MIN_PRICE) / (MAX_PRICE - MIN_PRICE)) * 100;
 
   return (
     <section
@@ -69,25 +69,16 @@ export default function AssistPricePreferenceCard({ enabled }) {
             </div>
           </div>
 
-          <div className="mt-5">
-            <div className="relative h-2 rounded-full bg-slate-200">
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-slate-900"
-                style={{ width: `${progress}%` }}
-                aria-hidden="true"
-              />
-              <input
-                type="range"
-                min={MIN_PRICE}
-                max={MAX_PRICE}
-                step={PRICE_STEP}
-                value={minimumPrice}
-                onChange={(event) => setMinimumPrice(Number(event.target.value))}
-                aria-label="Minimum job price"
-                aria-valuetext={formatMinimumPrice(minimumPrice)}
-                className="absolute inset-0 h-2 w-full cursor-pointer appearance-none bg-transparent accent-slate-900 disabled:cursor-not-allowed"
-              />
-            </div>
+          <div className="mt-5 px-1">
+            <Slider
+              min={MIN_PRICE}
+              max={MAX_PRICE}
+              step={PRICE_STEP}
+              value={[minimumPrice]}
+              onValueChange={(value) => setMinimumPrice(value[0] ?? MIN_PRICE)}
+              disabled={!enabled}
+              aria-label="Minimum job price"
+            />
 
             <div className="mt-3 grid grid-cols-4 text-xs font-medium tabular-nums text-slate-400">
               <span>Any</span>
