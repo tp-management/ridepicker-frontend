@@ -8,6 +8,7 @@ import WhatsappConnectedCard from "@/components/whatsapp/WhatsappConnectedCard";
 import WhatsappReconnectingCard from "@/components/whatsapp/WhatsappReconnectingCard";
 import WhatsappDemoControls from "@/components/whatsapp/WhatsappDemoControls";
 import LiveAssistPreferencesCard from "@/components/whatsapp/LiveAssistPreferencesCard";
+import AssistPricePreferenceCard from "@/components/whatsapp/AssistPricePreferenceCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function WhatsApp() {
@@ -130,6 +131,11 @@ export default function WhatsApp() {
       )}
 
       <LiveAssistPreferencesCard
+        enabled={assistPreferencesEnabled}
+        userId={user?.id || null}
+      />
+
+      <AssistPricePreferenceCard
         enabled={assistPreferencesEnabled}
         userId={user?.id || null}
       />
