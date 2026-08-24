@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { BadgePoundSterling, CarFront, ListFilter } from "lucide-react";
 import { useProduct } from "@/lib/product/ProductContext";
 import { useToast } from "@/components/ui/use-toast";
 import GettingStarted from "@/components/whatsapp/GettingStarted";
@@ -9,6 +10,8 @@ import WhatsappReconnectingCard from "@/components/whatsapp/WhatsappReconnecting
 import WhatsappDemoControls from "@/components/whatsapp/WhatsappDemoControls";
 import LiveAssistPreferencesCard from "@/components/whatsapp/LiveAssistPreferencesCard";
 import AssistPricePreferenceCard from "@/components/whatsapp/AssistPricePreferenceCard";
+import AssistVehiclePreferenceCard from "@/components/whatsapp/AssistVehiclePreferenceCard";
+import CollapsiblePreferenceSection from "@/components/whatsapp/CollapsiblePreferenceSection";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function WhatsApp() {
@@ -130,15 +133,43 @@ export default function WhatsApp() {
         </div>
       )}
 
-      <LiveAssistPreferencesCard
-        enabled={assistPreferencesEnabled}
-        userId={user?.id || null}
-      />
+      <div className="space-y-3">
+        <CollapsiblePreferenceSection
+          icon={ListFilter}
+          title="Assist preferences"
+          summary="Message keyword filter"
+          enabled={assistPreferencesEnabled}
+        >
+          <LiveAssistPreferencesCard
+            enabled={assistPreferencesEnabled}
+            userId={user?.id || null}
+          />
+        </CollapsiblePreferenceSection>
 
-      <AssistPricePreferenceCard
-        enabled={assistPreferencesEnabled}
-        userId={user?.id || null}
-      />
+        <CollapsiblePreferenceSection
+          icon={BadgePoundSterling}
+          title="Price preference"
+          summary="Minimum job price"
+          enabled={assistPreferencesEnabled}
+        >
+          <AssistPricePreferenceCard
+            enabled={assistPreferencesEnabled}
+            userId={user?.id || null}
+          />
+        </CollapsiblePreferenceSection>
+
+        <CollapsiblePreferenceSection
+          icon={CarFront}
+          title="Vehicle preference"
+          summary="Saloon, Estate, MPV or 8 Seater"
+          enabled={assistPreferencesEnabled}
+        >
+          <AssistVehiclePreferenceCard
+            enabled={assistPreferencesEnabled}
+            userId={user?.id || null}
+          />
+        </CollapsiblePreferenceSection>
+      </div>
 
       <WhatsappDemoControls status={status} onSimulateDrop={simulateDrop} onReset={reset} />
 
