@@ -135,7 +135,10 @@ export default function WhatsApp() {
         userId={user?.id || null}
       />
 
-      <AssistPricePreferenceCard enabled={assistPreferencesEnabled} />
+      <AssistPricePreferenceCard
+        enabled={assistPreferencesEnabled}
+        userId={user?.id || null}
+      />
 
       <WhatsappDemoControls status={status} onSimulateDrop={simulateDrop} onReset={reset} />
 
