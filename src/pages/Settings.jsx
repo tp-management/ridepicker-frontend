@@ -57,14 +57,21 @@ export default function Settings() {
 
   const nameChanged = editName.trim() && editName.trim() !== (user?.full_name || "");
 
-  const saveProfile = () => {
-    if (!nameChanged) return;
+  const saveProfile = async () => {
+    if (!nameChanged || savingProfile) return;
     setSavingProfile(true);
-    updateProfile({ name: editName.trim() });
-    setTimeout(() => {
-      setSavingProfile(false);
+    try {
+      await updateProfile({ name: editName.trim() });
       toast({ title: "Profile updated", description: "Your name has been saved." });
-    }, 300);
+    } catch (error) {
+      toast({
+        title: "Profile update failed",
+        description: error?.message || "Your name was not saved. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   return (
@@ -93,7 +100,7 @@ export default function Settings() {
                 disabled={!nameChanged || savingProfile}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
               >
-                <Save className="h-4 w-4" /> Save
+                <Save className="h-4 w-4" /> {savingProfile ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
