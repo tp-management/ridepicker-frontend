@@ -13,6 +13,8 @@ import { JOBS as DEMO_JOBS, ACTIVITY as DEMO_ACTIVITY } from "@/lib/mockData";
 
 const ProductContext = createContext(null);
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const replaceJobInList = (list, updated) =>
+  updated ? list.map((job) => (job.id === updated.id ? updated : job)) : list;
 
 const MODE_DETAIL = {
   assist: "Monitoring new messages and alerting you to jobs.",
@@ -243,15 +245,17 @@ export function ProductProvider({ children }) {
   );
 
   const setMode = useCallback(
-    (m) => {
+    async (m) => {
       if (m === "autopilot") return false;
       if (m !== "off" && waStatus !== "connected") return false;
       if (m !== "off" && !hasActiveSubscription) return false;
       if (mode === m) return true;
+
       const startedAt = m !== "off" && mode === "off" ? new Date().toISOString() : botStartedAt;
+      await ridePickerService.setMode(user?.id, m, startedAt);
       setModeState(m);
       if (m !== "off" && mode === "off") setBotStartedAt(startedAt);
-      ridePickerService.setMode(user?.id, m, startedAt).catch(() => {});
+
       if (!isApiMode()) {
         addActivity({
           type: "ridepicker",
@@ -351,56 +355,101 @@ export function ProductProvider({ children }) {
   }, []);
 
   const changeJobStatus = useCallback(
-    (id, status) => {
+    async (id, status) => {
       const list = demoModeRef.current ? demoJobs : realJobs;
       const job = list.find((j) => j.id === id);
       const detail = job ? `${job.pickup} → ${job.dropoff}` : "";
-      if (demoModeRef.current) setDemoJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status } : j)));
-      else jobsService.updateStatus(user?.id, id, status).catch(() => {});
-      if (!isApiMode()) {
-        addActivity({ type: "job", title: `Job status changed to ${cap(status)}`, detail });
+
+      if (demoModeRef.current) {
+        const updated = job ? { ...job, status } : null;
+        setDemoJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status } : j)));
+        if (!isApiMode()) {
+          addActivity({ type: "job", title: `Job status changed to ${cap(status)}`, detail });
+        }
+        return updated;
       }
+
+      const updated = await jobsService.updateStatus(user?.id, id, status);
+      if (!updated) throw new Error("The job was not updated.");
+      setRealJobs((prev) => replaceJobInList(prev, updated));
+      return updated;
     },
     [demoJobs, realJobs, addActivity, user?.id]
   );
 
   const setJobPayment = useCallback(
-    (id, patch) => {
+    async (id, patch) => {
       const list = demoModeRef.current ? demoJobs : realJobs;
       const job = list.find((j) => j.id === id);
       const detail = job ? `${job.pickup} → ${job.dropoff}` : "";
       const next = {};
       if (patch.paymentStatus !== undefined) next.paymentStatus = patch.paymentStatus;
       if (patch.paymentMethod !== undefined) next.paymentMethod = patch.paymentMethod;
-      if (demoModeRef.current) setDemoJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...next } : j)));
-      else jobsService.updatePayment(user?.id, id, next).catch(() => {});
-      const label = next.paymentStatus === "paid" ? "marked paid" : next.paymentStatus === "unpaid" ? "marked unpaid" : "updated";
-      if (!isApiMode()) {
-        addActivity({ type: "job", title: `Payment ${label}`, detail });
+
+      if (demoModeRef.current) {
+        const updated = job ? { ...job, ...next } : null;
+        setDemoJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...next } : j)));
+        const label =
+          next.paymentStatus === "paid"
+            ? "marked paid"
+            : next.paymentStatus === "unpaid"
+            ? "marked unpaid"
+            : "updated";
+        if (!isApiMode()) {
+          addActivity({ type: "job", title: `Payment ${label}`, detail });
+        }
+        return updated;
       }
+
+      const updated = await jobsService.updatePayment(user?.id, id, next);
+      if (!updated) throw new Error("The payment update was not saved.");
+      setRealJobs((prev) => replaceJobInList(prev, updated));
+      return updated;
     },
     [demoJobs, realJobs, addActivity, user?.id]
   );
 
   const addExpense = useCallback(
-    (id, expense) => {
-      const entry = { id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, ...expense };
-      if (demoModeRef.current)
-        setDemoJobs((prev) => prev.map((j) => (j.id === id ? { ...j, expenses: [...(j.expenses || []), entry] } : j)));
-      else jobsService.addExpense(user?.id, id, entry).catch(() => {});
+    async (id, expense) => {
+      if (demoModeRef.current) {
+        const entry = { id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`, ...expense };
+        const job = demoJobs.find((j) => j.id === id);
+        const updated = job ? { ...job, expenses: [...(job.expenses || []), entry] } : null;
+        setDemoJobs((prev) =>
+          prev.map((j) => (j.id === id ? { ...j, expenses: [...(j.expenses || []), entry] } : j))
+        );
+        return updated;
+      }
+
+      const updated = await jobsService.addExpense(user?.id, id, expense);
+      if (!updated) throw new Error("The expense was not added.");
+      setRealJobs((prev) => replaceJobInList(prev, updated));
+      return updated;
     },
-    [demoJobs, realJobs, user?.id]
+    [demoJobs, user?.id]
   );
 
   const removeExpense = useCallback(
-    (id, expenseId) => {
-      if (demoModeRef.current)
+    async (id, expenseId) => {
+      if (demoModeRef.current) {
+        const job = demoJobs.find((j) => j.id === id);
+        const updated = job
+          ? { ...job, expenses: (job.expenses || []).filter((e) => e.id !== expenseId) }
+          : null;
         setDemoJobs((prev) =>
-          prev.map((j) => (j.id === id ? { ...j, expenses: (j.expenses || []).filter((e) => e.id !== expenseId) } : j))
+          prev.map((j) =>
+            j.id === id ? { ...j, expenses: (j.expenses || []).filter((e) => e.id !== expenseId) } : j
+          )
         );
-      else jobsService.removeExpense(user?.id, id, expenseId).catch(() => {});
+        return updated;
+      }
+
+      const updated = await jobsService.removeExpense(user?.id, id, expenseId);
+      if (!updated) throw new Error("The expense was not removed.");
+      setRealJobs((prev) => replaceJobInList(prev, updated));
+      return updated;
     },
-    [demoJobs, realJobs, user?.id]
+    [demoJobs, user?.id]
   );
 
   const updateProfile = useCallback(
