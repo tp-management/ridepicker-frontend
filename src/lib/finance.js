@@ -46,9 +46,15 @@ export function inPeriod(job, range) {
 }
 
 const WON = "won";
+const COMPLETED = "completed";
+const SECURED_STATUSES = new Set([WON, COMPLETED]);
 
-export function jobCompleted(job, ref = new Date()) {
-  return job.status === WON && new Date(job.pickupTime) < ref;
+function jobSecured(job) {
+  return SECURED_STATUSES.has(job.status);
+}
+
+export function jobCompleted(job) {
+  return job.status === COMPLETED;
 }
 
 export function jobUpcoming(job, ref = new Date()) {
@@ -64,35 +70,37 @@ export function jobProfit(job) {
   return price - jobExpenses(job);
 }
 
-// Financial totals for the selected period (won / booked jobs only).
+// Financial totals for the selected period. A completed job remains a secured
+// job for revenue purposes, matching the database dashboard_summary semantics.
 export function computeFinance(jobs, period, ref = new Date()) {
   const range = periodRange(period, ref);
-  const won = jobs.filter((j) => j.status === WON && inPeriod(j, range));
-  const expected = won.reduce((s, j) => s + (Number(j.price) || 0), 0);
-  const received = won
+  const secured = jobs.filter((j) => jobSecured(j) && inPeriod(j, range));
+  const expected = secured.reduce((s, j) => s + (Number(j.price) || 0), 0);
+  const received = secured
     .filter((j) => j.paymentStatus === "paid")
     .reduce((s, j) => s + (Number(j.price) || 0), 0);
   const outstanding = expected - received;
-  const expenses = won.reduce((s, j) => s + jobExpenses(j), 0);
+  const expenses = secured.reduce((s, j) => s + jobExpenses(j), 0);
   const net = received - expenses;
   return { expected, received, outstanding, expenses, net };
 }
 
-// Operational counts for the selected period.
+// Operational counts for the selected period. "Completed" is an explicit
+// lifecycle status; a past pickup time alone does not rewrite job state.
 export function computeOps(jobs, period, ref = new Date()) {
   const range = periodRange(period, ref);
-  const won = jobs.filter((j) => j.status === WON && inPeriod(j, range));
-  const completed = won.filter((j) => new Date(j.pickupTime) < ref).length;
-  const upcoming = won.filter((j) => new Date(j.pickupTime) >= ref).length;
-  return { jobsWon: won.length, upcoming, completed };
+  const secured = jobs.filter((j) => jobSecured(j) && inPeriod(j, range));
+  const completed = secured.filter((j) => jobCompleted(j)).length;
+  const upcoming = secured.filter((j) => jobUpcoming(j, ref)).length;
+  return { jobsWon: secured.length, upcoming, completed };
 }
 
 // Intelligent "needs attention" alerts derived from real data.
 // Each alert links to a filtered Jobs view. No fabricated alerts.
-export function computeAttention(jobs, ref = new Date()) {
+export function computeAttention(jobs) {
   const alerts = [];
 
-  const completedUnpaid = jobs.filter((j) => jobCompleted(j, ref) && j.paymentStatus !== "paid");
+  const completedUnpaid = jobs.filter((j) => jobCompleted(j) && j.paymentStatus !== "paid");
   if (completedUnpaid.length) {
     const total = completedUnpaid.reduce((s, j) => s + (Number(j.price) || 0), 0);
     alerts.push({
@@ -105,7 +113,7 @@ export function computeAttention(jobs, ref = new Date()) {
   }
 
   const noPrice = jobs.filter(
-    (j) => j.status !== "lost" && j.status !== "ignored" && !j.price && new Date(j.pickupTime) >= ref
+    (j) => j.status !== "lost" && j.status !== "ignored" && !j.price && new Date(j.pickupTime) >= new Date()
   );
   if (noPrice.length) {
     alerts.push({
@@ -148,13 +156,13 @@ export function computeSummary(jobs, period, ref = new Date()) {
     return "No jobs detected yet. Connect WhatsApp and turn on RidePicker to start monitoring.";
   }
   const range = periodRange(period, ref);
-  const won = jobs.filter((j) => j.status === WON && inPeriod(j, range));
+  const secured = jobs.filter((j) => jobSecured(j) && inPeriod(j, range));
   const noun = periodNoun(period);
-  if (!won.length) {
+  if (!secured.length) {
     return `No jobs secured ${noun} yet. ${jobs.length} job${jobs.length === 1 ? "" : "s"} detected and being worked.`;
   }
-  const value = won.reduce((s, j) => s + (Number(j.price) || 0), 0);
-  const outstanding = won
+  const value = secured.reduce((s, j) => s + (Number(j.price) || 0), 0);
+  const outstanding = secured
     .filter((j) => j.paymentStatus !== "paid")
     .reduce((s, j) => s + (Number(j.price) || 0), 0);
 
@@ -163,18 +171,19 @@ export function computeSummary(jobs, period, ref = new Date()) {
   tStart.setHours(0, 0, 0, 0);
   const tEnd = new Date(tStart);
   tEnd.setHours(23, 59, 59, 999);
-  const tomWon = won.filter((j) => {
+  const tomorrowWon = secured.filter((j) => {
+    if (j.status !== WON) return false;
     const t = new Date(j.pickupTime);
     return t >= tStart && t <= tEnd;
   });
 
-  const parts = [`You secured ${won.length} ${won.length === 1 ? "job" : "jobs"} ${noun} worth £${value}.`];
+  const parts = [`You secured ${secured.length} ${secured.length === 1 ? "job" : "jobs"} ${noun} worth £${value}.`];
   if (outstanding > 0) parts.push(`£${outstanding} is still outstanding.`);
-  if (tomWon.length) {
-    const earliest = tomWon.map((j) => new Date(j.pickupTime)).sort((a, b) => a - b)[0];
+  if (tomorrowWon.length) {
+    const earliest = tomorrowWon.map((j) => new Date(j.pickupTime)).sort((a, b) => a - b)[0];
     const hh = String(earliest.getHours()).padStart(2, "0");
     const mm = String(earliest.getMinutes()).padStart(2, "0");
-    parts.push(`Tomorrow you have ${tomWon.length} confirmed ${tomWon.length === 1 ? "job" : "jobs"} starting at ${hh}:${mm}.`);
+    parts.push(`Tomorrow you have ${tomorrowWon.length} confirmed ${tomorrowWon.length === 1 ? "job" : "jobs"} starting at ${hh}:${mm}.`);
   }
   return parts.join(" ");
 }
