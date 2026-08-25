@@ -97,7 +97,7 @@ export function computeOps(jobs, period, ref = new Date()) {
 
 // Intelligent "needs attention" alerts derived from real data.
 // Each alert links to a filtered Jobs view. No fabricated alerts.
-export function computeAttention(jobs) {
+export function computeAttention(jobs, ref = new Date()) {
   const alerts = [];
 
   const completedUnpaid = jobs.filter((j) => jobCompleted(j) && j.paymentStatus !== "paid");
@@ -113,7 +113,7 @@ export function computeAttention(jobs) {
   }
 
   const noPrice = jobs.filter(
-    (j) => j.status !== "lost" && j.status !== "ignored" && !j.price && new Date(j.pickupTime) >= new Date()
+    (j) => j.status !== "lost" && j.status !== "ignored" && !j.price && new Date(j.pickupTime) >= ref
   );
   if (noPrice.length) {
     alerts.push({
