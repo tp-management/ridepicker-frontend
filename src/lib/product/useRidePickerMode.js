@@ -22,7 +22,7 @@ export function useRidePickerMode() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const onMode = (m) => {
+  const onMode = async (m) => {
     if (m === "autopilot") {
       toast({ title: "Autopilot coming soon", description: "Autonomous contacting is not available yet." });
       return;
@@ -38,12 +38,21 @@ export function useRidePickerMode() {
         return;
       }
     }
-    const ok = setMode(m);
-    if (!ok) return;
-    toast({
-      title: m === "off" ? "RidePicker off" : `RidePicker set to ${cap(m)}`,
-      description: MODE_TEXT[m],
-    });
+
+    try {
+      const ok = await setMode(m);
+      if (!ok) return;
+      toast({
+        title: m === "off" ? "RidePicker off" : `RidePicker set to ${cap(m)}`,
+        description: MODE_TEXT[m],
+      });
+    } catch (error) {
+      toast({
+        title: "RidePicker mode was not changed",
+        description: error?.message || "The server did not accept the change. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return { whatsappConnected, hasActiveSubscription, mode, onMode };
