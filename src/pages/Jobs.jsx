@@ -2,19 +2,20 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Briefcase, MessageCircle, Power, AlertTriangle } from "lucide-react";
 import { useProduct } from "@/lib/product/ProductContext";
+import { useToast } from "@/components/ui/use-toast";
 import JobRow from "@/components/JobRow";
 import JobDetailPanel from "@/components/JobDetailPanel";
 import EmptyState from "@/components/EmptyState";
 import { config } from "@/lib/config";
 
-const STATUSES = ["new", "interested", "contacted", "negotiating", "won", "lost", "ignored"];
+const STATUSES = ["new", "interested", "contacted", "negotiating", "won", "completed", "lost", "ignored"];
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 function initialFilters() {
   const params = new URLSearchParams(window.location.search);
   const attention = params.get("attention");
   if (attention === "completed_unpaid")
-    return { status: "won", payment: "unpaid", time: "completed", noPrice: false };
+    return { status: "completed", payment: "unpaid", time: "all", noPrice: false };
   if (attention === "no_price") return { status: "all", payment: "all", time: "all", noPrice: true };
   return {
     status: params.get("status") || "all",
@@ -35,6 +36,7 @@ export default function Jobs() {
     removeExpense,
     enableDemo,
   } = useProduct();
+  const { toast } = useToast();
   const init = useMemo(initialFilters, []);
   const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState("");
@@ -69,23 +71,56 @@ export default function Jobs() {
     );
   }, [jobs, status, payment, time, noPrice, query, sort]);
 
-  const handleStatusChange = (id, st) => {
-    changeJobStatus(id, st);
-    setSelected((p) => (p && p.id === id ? { ...p, status: st } : p));
+  const showWriteError = (title, error) => {
+    toast({
+      title,
+      description: error?.message || "The change was not saved. Please try again.",
+      variant: "destructive",
+    });
   };
-  const handlePayment = (id, patch) => {
-    setJobPayment(id, patch);
-    setSelected((p) => (p && p.id === id ? { ...p, ...patch } : p));
+
+  const handleStatusChange = async (id, st) => {
+    try {
+      const updated = await changeJobStatus(id, st);
+      if (updated) setSelected((current) => (current?.id === id ? updated : current));
+      return updated;
+    } catch (error) {
+      showWriteError("Job status was not changed", error);
+      return null;
+    }
   };
-  const handleAddExpense = (id, expense) => {
-    addExpense(id, expense);
-    setSelected((p) => (p && p.id === id ? { ...p, expenses: [...(p.expenses || []), expense] } : p));
+
+  const handlePayment = async (id, patch) => {
+    try {
+      const updated = await setJobPayment(id, patch);
+      if (updated) setSelected((current) => (current?.id === id ? updated : current));
+      return updated;
+    } catch (error) {
+      showWriteError("Payment change was not saved", error);
+      return null;
+    }
   };
-  const handleRemoveExpense = (id, expenseId) => {
-    removeExpense(id, expenseId);
-    setSelected((p) =>
-      p && p.id === id ? { ...p, expenses: (p.expenses || []).filter((e) => e.id !== expenseId) } : p
-    );
+
+  const handleAddExpense = async (id, expense) => {
+    try {
+      const updated = await addExpense(id, expense);
+      if (updated) setSelected((current) => (current?.id === id ? updated : current));
+      return updated;
+    } catch (error) {
+      showWriteError("Expense was not added", error);
+      return null;
+    }
+  };
+
+  const handleRemoveExpense = async (id, expenseId) => {
+    try {
+      const updated = await removeExpense(id, expenseId);
+      if (updated) setSelected((current) => (current?.id === id ? updated : current));
+      return updated;
+    } catch (error) {
+      showWriteError("Expense was not removed", error);
+      return null;
+    }
   };
 
   const hasJobs = jobs.length > 0;
@@ -196,9 +231,9 @@ export default function Jobs() {
                 <option value="unpaid">Unpaid</option>
               </Select>
               <Select value={time} onChange={setTime}>
-                <option value="all">All times</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="completed">Completed</option>
+                <option value="all">All pickup times</option>
+                <option value="upcoming">Upcoming pickup</option>
+                <option value="completed">Past pickup</option>
               </Select>
               <Select value={sort} onChange={setSort}>
                 <option value="newest">Pickup time</option>
