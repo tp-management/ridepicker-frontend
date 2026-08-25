@@ -16,7 +16,7 @@ import ExpenseEditor from "./ExpenseEditor";
 import { formatJobTime, formatRelative, priceLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const STATUSES = ["new", "interested", "contacted", "negotiating", "won", "lost", "ignored"];
+const STATUSES = ["new", "interested", "contacted", "negotiating", "won", "completed", "lost", "ignored"];
 const PAYMENT_STATUSES = ["unpaid", "paid"];
 const PAYMENT_METHODS = ["cash", "card", "invoice", "account"];
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
