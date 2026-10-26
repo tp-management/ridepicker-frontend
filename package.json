@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "check:lifecycle": "node scripts/check-whatsapp-mode-lifecycle.mjs",
+    "test:activity": "node --test test/activityPriority.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
