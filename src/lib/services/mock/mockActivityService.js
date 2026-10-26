@@ -21,7 +21,12 @@ export const mockActivityService = {
   },
   async add(userId, entry) {
     await delay(0);
-    mockDataStore.addActivity(userId, entry);
-    return entry;
+    const next = { priority: "regular", ...entry };
+    mockDataStore.addActivity(userId, next);
+    return next;
+  },
+  async updatePriority(userId, activityId, priority) {
+    await delay(0);
+    return mockDataStore.updateActivityPriority(userId, activityId, priority);
   },
 };

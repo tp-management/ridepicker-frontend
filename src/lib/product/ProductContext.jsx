@@ -236,10 +236,47 @@ export function ProductProvider({ children }) {
       const entry = {
         id: `e${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
         time: new Date().toISOString(),
+        priority: "regular",
         ...ev,
       };
       if (demoModeRef.current) setDemoActivity((prev) => [entry, ...prev]);
       activityService.add(user?.id, entry).catch(() => {});
+    },
+    [user?.id]
+  );
+
+  const updateActivityPriority = useCallback(
+    async (activityId, priority) => {
+      const normalized = priority === "high" ? "high" : "regular";
+
+      if (demoModeRef.current) {
+        setDemoActivity((prev) =>
+          prev.map((entry) =>
+            String(entry.id) === String(activityId)
+              ? { ...entry, priority: normalized }
+              : entry
+          )
+        );
+        return { activityId, priority: normalized };
+      }
+
+      const result = await activityService.updatePriority(
+        user?.id,
+        activityId,
+        normalized
+      );
+      if (!result) {
+        throw new Error("The activity priority was not updated.");
+      }
+
+      setRealActivity((prev) =>
+        prev.map((entry) =>
+          String(entry.id) === String(activityId)
+            ? { ...entry, priority: result.priority || normalized }
+            : entry
+        )
+      );
+      return result;
     },
     [user?.id]
   );
@@ -499,6 +536,7 @@ export function ProductProvider({ children }) {
     jobsLoading,
     jobsError,
     activityError,
+    updateActivityPriority,
     connectWhatsApp,
     disconnectWhatsApp,
     simulateDrop,

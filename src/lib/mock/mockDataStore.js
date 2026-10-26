@@ -232,8 +232,24 @@ export const mockDataStore = {
     const s = ensureSeeded();
     const u = s.users[userId];
     if (!u) return;
-    u.activity = [entry, ...(u.activity || [])];
+    u.activity = [{ priority: "regular", ...entry }, ...(u.activity || [])];
     commit(s);
+  },
+
+  updateActivityPriority(userId, activityId, priority) {
+    const s = ensureSeeded();
+    const u = s.users[userId];
+    if (!u) return null;
+    const normalized = priority === "high" ? "high" : "regular";
+    let updated = null;
+    u.activity = (u.activity || []).map((entry) => {
+      if (String(entry.id) !== String(activityId)) return entry;
+      updated = { ...entry, priority: normalized };
+      return updated;
+    });
+    if (!updated) return null;
+    commit(s);
+    return updated;
   },
 
   // ---- Dev reset ----
