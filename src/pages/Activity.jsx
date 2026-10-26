@@ -35,13 +35,38 @@ const ICONS = {
 export default function Activity() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { activity, whatsappConnected, botActive } = useProduct();
+  const {
+    activity,
+    whatsappConnected,
+    botActive,
+    updateActivityPriority,
+  } = useProduct();
   const [filter, setFilter] = useState("all");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [prioritySavingId, setPrioritySavingId] = useState(null);
 
   const filtered = activity.filter((e) => filter === "all" || e.type === filter);
   const has = activity.length > 0;
+
+  const togglePriority = async (entry) => {
+    if (!entry || prioritySavingId) return;
+    const current = entry.priority === "high" ? "high" : "regular";
+    const next = current === "high" ? "regular" : "high";
+
+    setPrioritySavingId(entry.id);
+    try {
+      await updateActivityPriority(entry.id, next);
+    } catch (error) {
+      toast({
+        title: "Could not update priority",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPrioritySavingId(null);
+    }
+  };
 
   const deleteActivity = async () => {
     const target = deleteTarget;
@@ -154,20 +179,44 @@ export default function Activity() {
                           {formatRelative(e.time)}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(e)}
-                        disabled={Boolean(deletingId)}
-                        className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 sm:text-slate-300"
-                        aria-label={`Delete ${e.title || "activity"}`}
-                        title="Delete activity"
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </button>
+                      <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => togglePriority(e)}
+                          disabled={Boolean(prioritySavingId)}
+                          className={cn(
+                            "inline-flex h-8 min-w-[68px] items-center justify-center rounded-full border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                            e.priority === "high"
+                              ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                              : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                          )}
+                          aria-label={`Priority: ${e.priority === "high" ? "High" : "Regular"}. Click to change.`}
+                          title="Click to change priority"
+                        >
+                          {prioritySavingId === e.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : e.priority === "high" ? (
+                            "High"
+                          ) : (
+                            "Regular"
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(e)}
+                          disabled={Boolean(deletingId)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 sm:text-slate-300"
+                          aria-label={`Delete ${e.title || "activity"}`}
+                          title="Delete activity"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   );
                 })
