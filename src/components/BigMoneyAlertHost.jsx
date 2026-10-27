@@ -8,6 +8,8 @@ import {
   BIG_MONEY_DECISION_EVENT,
   bigMoneyDecision,
   readBigMoneyAlert,
+  reconcileBigMoneyQueue,
+  withoutBigMoneyAlert,
 } from "@/lib/bigMoneyAlert";
 
 const PREVIEW_MESSAGE =
@@ -19,28 +21,45 @@ export default function BigMoneyAlertHost() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const seenMessageIds = useRef(new Set());
+  const handledAlertIds = useRef(new Set());
   const active = queue[0] || null;
 
   useEffect(() => {
+    // Never retain another account's inbox or acknowledged IDs on account switch.
+    handledAlertIds.current.clear();
+    seenMessageIds.current.clear();
+    setQueue([]);
     if (!user?.id) return undefined;
+
     let running = true;
+    let latestRequest = 0;
     const refresh = async () => {
+      const currentRequest = ++latestRequest;
       try {
         const response = await apiRequest(`/api/users/${encoded(user.id)}/big-money-alerts`);
-        if (!running) return;
-        const alerts = (response?.alerts || []).map((row) => ({ ...row, ...readBigMoneyAlert(row) })).filter((row) => row.originalMessage);
-        setQueue((previous) => {
-          const preview = previous.filter((row) => row.id === undefined);
-          return [...preview, ...alerts];
-        });
+        if (!running || currentRequest !== latestRequest) return;
+        setQueue((previous) =>
+          reconcileBigMoneyQueue(previous, response?.alerts, handledAlertIds.current)
+        );
       } catch (requestError) {
-        // Backend endpoint is deployed with the migration, not yet on production.
-        if (running && requestError?.status !== 404) console.warn("Could not load BIG MONEY alerts:", requestError);
+        // Keep already-shown items if the network becomes unavailable.
+        if (running && currentRequest === latestRequest && requestError?.status !== 404) {
+          console.warn("Could not load BIG MONEY alerts:", requestError);
+        }
       }
     };
+
     void refresh();
-    const unsubscribe = apiChanges.subscribe(() => { void refresh(); });
-    return () => { running = false; unsubscribe(); };
+    const unsubscribe = apiChanges.subscribe(() => { void refresh(); }, "big_money_alerts");
+    // Raw SQL inserts do not publish SSE events. Refresh when the user returns
+    // to the browser; this is focus-based, not periodic polling.
+    const onFocus = () => { void refresh(); };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      running = false;
+      unsubscribe();
+      window.removeEventListener("focus", onFocus);
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -76,15 +95,17 @@ export default function BigMoneyAlertHost() {
     setSaving(true);
     setError("");
     try {
-      if (active.id && user?.id) {
+      if (active.id != null && user?.id) {
         // Resolve the pending item durably. ACCEPT only reserves future action X.
         await apiRequest(
           `/api/users/${encoded(user.id)}/big-money-alerts/${encoded(active.id)}`,
           { method: "PATCH", body: { decision } }
         );
       }
+      // Protect against an older GET that completed while this PATCH was saving.
+      if (active.id != null) handledAlertIds.current.add(String(active.id));
       window.dispatchEvent(new CustomEvent(BIG_MONEY_DECISION_EVENT, { detail: payload }));
-      setQueue((previous) => previous.slice(1));
+      setQueue((previous) => withoutBigMoneyAlert(previous, active));
     } catch (requestError) {
       setError(requestError?.message || "Could not save your decision. Try again.");
     } finally {
