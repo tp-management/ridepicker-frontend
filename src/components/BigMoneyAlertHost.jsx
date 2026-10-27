@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Check, MessageCircle, X } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { apiChanges, apiRequest, encoded } from "@/lib/services/api/apiClient";
 import {
   BIG_MONEY_ALERT_EVENT,
   BIG_MONEY_DECISION_EVENT,
@@ -12,9 +14,34 @@ const PREVIEW_MESSAGE =
   "Today\nASAP\nCM24 1QW → KY16\n435 miles\n£950\nSameday payment";
 
 export default function BigMoneyAlertHost() {
+  const { user } = useAuth();
   const [queue, setQueue] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const seenMessageIds = useRef(new Set());
   const active = queue[0] || null;
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let running = true;
+    const refresh = async () => {
+      try {
+        const response = await apiRequest(`/api/users/${encoded(user.id)}/big-money-alerts`);
+        if (!running) return;
+        const alerts = (response?.alerts || []).map((row) => ({ ...row, ...readBigMoneyAlert(row) })).filter((row) => row.originalMessage);
+        setQueue((previous) => {
+          const preview = previous.filter((row) => row.id === undefined);
+          return [...preview, ...alerts];
+        });
+      } catch (requestError) {
+        // Backend endpoint is deployed with the migration, not yet on production.
+        if (running && requestError?.status !== 404) console.warn("Could not load BIG MONEY alerts:", requestError);
+      }
+    };
+    void refresh();
+    const unsubscribe = apiChanges.subscribe(() => { void refresh(); });
+    return () => { running = false; unsubscribe(); };
+  }, [user?.id]);
 
   useEffect(() => {
     const receiveAlert = (event) => {
@@ -42,15 +69,27 @@ export default function BigMoneyAlertHost() {
     return () => window.removeEventListener(BIG_MONEY_ALERT_EVENT, receiveAlert);
   }, []);
 
-  const choose = (decision) => {
+  const choose = async (decision) => {
     const payload = bigMoneyDecision(active, decision);
-    if (!payload) return;
+    if (!payload || saving) return;
 
-    // A local acknowledgement event only. No WhatsApp reply, booking, or DB write.
-    window.dispatchEvent(
-      new CustomEvent(BIG_MONEY_DECISION_EVENT, { detail: payload })
-    );
-    setQueue((previous) => previous.slice(1));
+    setSaving(true);
+    setError("");
+    try {
+      if (active.id && user?.id) {
+        // Resolve the pending item durably. ACCEPT only reserves future action X.
+        await apiRequest(
+          `/api/users/${encoded(user.id)}/big-money-alerts/${encoded(active.id)}`,
+          { method: "PATCH", body: { decision } }
+        );
+      }
+      window.dispatchEvent(new CustomEvent(BIG_MONEY_DECISION_EVENT, { detail: payload }));
+      setQueue((previous) => previous.slice(1));
+    } catch (requestError) {
+      setError(requestError?.message || "Could not save your decision. Try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!active) return null;
@@ -86,12 +125,13 @@ export default function BigMoneyAlertHost() {
             </section>
           </div>
           <footer className="grid shrink-0 grid-cols-1 gap-3 border-t border-slate-100 bg-white px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-4 sm:grid-cols-2 sm:px-6 sm:pb-6">
-            <button type="button" onClick={() => choose("accept")}
-              className="flex min-h-[60px] w-full items-center justify-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 text-base font-extrabold text-white shadow-[0_8px_18px_rgba(5,150,105,0.17)] transition-colors hover:bg-emerald-700 active:bg-emerald-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">
+            {error && <div role="alert" className="text-sm text-rose-600 sm:col-span-2">{error}</div>}
+            <button type="button" disabled={saving} onClick={() => void choose("accept")}
+              className="flex min-h-[60px] w-full items-center justify-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 text-base font-extrabold text-white shadow-[0_8px_18px_rgba(5,150,105,0.17)] transition-colors disabled:opacity-60 hover:bg-emerald-700 active:bg-emerald-800 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">
               <Check aria-hidden="true" className="h-6 w-6 stroke-[3]" /> ACCEPT
             </button>
-            <button type="button" onClick={() => choose("decline")}
-              className="flex min-h-[60px] w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-extrabold text-slate-900 transition-colors hover:bg-slate-100 active:bg-slate-200 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-slate-700">
+            <button type="button" disabled={saving} onClick={() => void choose("decline")}
+              className="flex min-h-[60px] w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-base font-extrabold text-slate-900 transition-colors disabled:opacity-60 hover:bg-slate-100 active:bg-slate-200 focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-slate-700">
               <X aria-hidden="true" className="h-6 w-6 stroke-[3]" /> DECLINE
             </button>
           </footer>
