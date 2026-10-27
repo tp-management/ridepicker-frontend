@@ -1,4 +1,5 @@
 import { apiChanges, apiUrl, encoded } from "./apiClient";
+import { BIG_MONEY_ALERT_EVENT } from "@/lib/bigMoneyAlert";
 
 export const liveEventsApi = {
   connect(userId) {
@@ -30,6 +31,17 @@ export const liveEventsApi = {
         apiChanges.notify(payload);
       } catch {
         apiChanges.notify({ scopes: ["all"], reason: "invalid_live_event" });
+      }
+    });
+
+    // Reserved for explicit server-side BIG MONEY detection. The existing
+    // backend does not emit this event until a detector is connected.
+    source.addEventListener("big_money_job", (event) => {
+      try {
+        const detail = JSON.parse(event.data || "{}");
+        window.dispatchEvent(new CustomEvent(BIG_MONEY_ALERT_EVENT, { detail }));
+      } catch {
+        console.warn("Ignoring malformed BIG MONEY alert payload");
       }
     });
 
