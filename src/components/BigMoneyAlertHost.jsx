@@ -51,14 +51,21 @@ export default function BigMoneyAlertHost() {
 
     void refresh();
     const unsubscribe = apiChanges.subscribe(() => { void refresh(); }, "big_money_alerts");
-    // Raw SQL inserts do not publish SSE events. Refresh when the user returns
-    // to the browser; this is focus-based, not periodic polling.
-    const onFocus = () => { void refresh(); };
-    window.addEventListener("focus", onFocus);
+    // Direct Supabase SQL inserts don't publish SSE. Poll lightly while the
+    // dashboard is visible, and catch up immediately when it regains focus.
+    // The backend remains the source of truth; the poll never creates alerts.
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const timer = window.setInterval(refreshIfVisible, 15000);
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
     return () => {
       running = false;
+      window.clearInterval(timer);
       unsubscribe();
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
     };
   }, [user?.id]);
 
