@@ -3,6 +3,7 @@ import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { MobileStatusBar } from "./GlobalStatus";
 import DemoBanner from "@/components/DemoBanner";
+import BigMoneyAlertHost from "@/components/BigMoneyAlertHost";
 import { ProductProvider, useProduct } from "@/lib/product/ProductContext";
 
 export default function AppLayout() {
@@ -27,6 +28,7 @@ function AppShell() {
         <div className="h-20 sm:hidden" />
       </div>
       <BottomNav />
+      <BigMoneyAlertHost />
     </div>
   );
 }
