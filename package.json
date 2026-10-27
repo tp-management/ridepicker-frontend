@@ -11,6 +11,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "check:lifecycle": "node scripts/check-whatsapp-mode-lifecycle.mjs",
     "test:activity": "node --test test/activityPriority.test.js",
+    "test:big-money": "node --test test/bigMoneyAlert.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
