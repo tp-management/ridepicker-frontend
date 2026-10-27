@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { formatRelative } from "@/lib/format";
 import { useProduct } from "@/lib/product/ProductContext";
+import { filterAndSortActivity } from "@/lib/activityPriority";
 import { activityService } from "@/lib/services/activityService";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,12 @@ const FILTERS = [
   { key: "message", label: "Messages" },
   { key: "ridepicker", label: "RidePicker" },
   { key: "whatsapp", label: "WhatsApp" },
+];
+
+const PRIORITY_FILTERS = [
+  { key: "all", label: "All priorities" },
+  { key: "high", label: "High" },
+  { key: "regular", label: "Regular" },
 ];
 
 const ICONS = {
@@ -42,15 +49,18 @@ export default function Activity() {
     updateActivityPriority,
   } = useProduct();
   const [filter, setFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [prioritySavingId, setPrioritySavingId] = useState(null);
 
-  const filtered = activity.filter((e) => filter === "all" || e.type === filter);
+  const typeMatched = activity.filter((e) => filter === "all" || e.type === filter);
+  const filtered = filterAndSortActivity(typeMatched, { priority: priorityFilter });
+  const highCount = typeMatched.filter((e) => e.priority === "high").length;
   const has = activity.length > 0;
 
   const togglePriority = async (entry) => {
-    if (!entry || prioritySavingId) return;
+    if (!entry || prioritySavingId || deletingId) return;
     const current = entry.priority === "high" ? "high" : "regular";
     const next = current === "high" ? "regular" : "high";
 
@@ -145,7 +155,9 @@ export default function Activity() {
             {FILTERS.map((f) => (
               <button
                 key={f.key}
+                type="button"
                 onClick={() => setFilter(f.key)}
+                aria-pressed={filter === f.key}
                 className={cn(
                   "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   filter === f.key
@@ -156,6 +168,30 @@ export default function Activity() {
                 {f.label}
               </button>
             ))}
+          </div>
+
+          <div role="group" aria-label="Filter activity by priority" className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Priority</span>
+            {PRIORITY_FILTERS.map((f) => {
+              const count = f.key === "high" ? highCount : f.key === "regular" ? typeMatched.length - highCount : typeMatched.length;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setPriorityFilter(f.key)}
+                  aria-pressed={priorityFilter === f.key}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    priorityFilter === f.key
+                      ? "border-amber-600 bg-amber-50 text-amber-900"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  {f.label} <span className="ml-1 tabular-nums opacity-70">{count}</span>
+                </button>
+              );
+            })}
+            <span className="text-xs text-slate-400">High priority first</span>
           </div>
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -183,7 +219,7 @@ export default function Activity() {
                         <button
                           type="button"
                           onClick={() => togglePriority(e)}
-                          disabled={Boolean(prioritySavingId)}
+                          disabled={Boolean(prioritySavingId) || Boolean(deletingId)}
                           className={cn(
                             "inline-flex h-8 min-w-[68px] items-center justify-center rounded-full border px-2.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                             e.priority === "high"
@@ -205,7 +241,7 @@ export default function Activity() {
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(e)}
-                          disabled={Boolean(deletingId)}
+                          disabled={Boolean(deletingId) || Boolean(prioritySavingId)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 sm:text-slate-300"
                           aria-label={`Delete ${e.title || "activity"}`}
                           title="Delete activity"

@@ -20,6 +20,8 @@ jobs:
           VITE_RIDEPICKER_API_URL: https://example.invalid
       - run: npm run lint
       - run: npm run check:lifecycle
+      - run: npm run test:activity
+      - run: npm run test:big-money
       - name: Record existing project typecheck baseline
         run: |
           echo "Full-project typecheck currently has pre-existing UI typing errors outside this API change."

@@ -1,4 +1,5 @@
-if ('serviceWorker' in navigator) {
+// PWA registration is production-only. Vite's stable dev module paths must not be cached.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
