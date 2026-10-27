@@ -28,3 +28,35 @@ export function bigMoneyDecision(alert, decision) {
   if (!alert || !["accept", "decline"].includes(decision)) return null;
   return { messageId: alert.messageId, decision };
 }
+
+
+// The DB is authoritative for persistent alerts. Local preview / future
+// transient events may coexist, but a handled row must never reappear because
+// an older GET request completed after an ACCEPT / DECLINE.
+export function reconcileBigMoneyQueue(current, pendingRows, handledIds = new Set()) {
+  const localAlerts = (Array.isArray(current) ? current : [])
+    .filter((entry) => entry && (entry.id === undefined || entry.id === null));
+  const persisted = (Array.isArray(pendingRows) ? pendingRows : [])
+    .map((row) => {
+      const raw = readBigMoneyAlert(row);
+      if (!raw || row.id === undefined || row.id === null) return null;
+      return { ...row, ...raw };
+    })
+    .filter((row) => row && !handledIds.has(String(row.id)));
+  const seen = new Set();
+  return [...localAlerts, ...persisted].filter((row) => {
+    const key = row.id == null ? "local:" + String(row.messageId) : "db:" + String(row.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function withoutBigMoneyAlert(queue, handled) {
+  if (!handled) return Array.isArray(queue) ? queue : [];
+  return (Array.isArray(queue) ? queue : []).filter((entry) =>
+    handled.id != null
+      ? String(entry.id) !== String(handled.id)
+      : entry !== handled
+  );
+}
