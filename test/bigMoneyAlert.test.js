@@ -5,6 +5,8 @@ import {
   BIG_MONEY_DECISION_EVENT,
   bigMoneyDecision,
   readBigMoneyAlert,
+  reconcileBigMoneyQueue,
+  withoutBigMoneyAlert,
 } from "../src/lib/bigMoneyAlert.js";
 
 test("BIG MONEY alert preserves the entire original WhatsApp text exactly", () => {
@@ -40,4 +42,31 @@ test("ACCEPT and DECLINE produce only local decisions, without invented job fiel
   assert.equal(bigMoneyDecision(alert, "automatic_booking"), null);
   assert.equal(BIG_MONEY_ALERT_EVENT, "ridepicker:big-money-job");
   assert.equal(BIG_MONEY_DECISION_EVENT, "ridepicker:big-money-decision");
+});
+
+
+test("pending inbox combines raw DB messages, keeps previews and deduplicates IDs", () => {
+  const preview = { messageId: "preview-1", originalMessage: "Preview" };
+  const rows = [
+    { id: "12", source: "DB", messageId: "77", originalMessage: "Hello\nWorld" },
+    { id: "12", source: "DB", messageId: "77", originalMessage: "Hello\nWorld" },
+    { id: "13", messageId: "78", originalMessage: "  🛫 Long trip\n£950 " },
+  ];
+  const result = reconcileBigMoneyQueue([preview], rows);
+  assert.deepEqual(result.map((entry) => entry.id ?? "preview"), ["preview", "12", "13"]);
+  assert.equal(result[2].originalMessage, "  🛫 Long trip\n£950 ");
+  assert.deepEqual(reconcileBigMoneyQueue(result, rows, new Set(["12"])).map((entry) =>
+    entry.id ?? "preview"), ["preview", "13"]);
+  assert.deepEqual(reconcileBigMoneyQueue([], [{ id: 5, originalMessage: " " }]), []);
+});
+
+test("acknowledged alert is removed without hiding other queued messages", () => {
+  const initial = [
+    { id: "1", originalMessage: "First" },
+    { id: "2", originalMessage: "Second" },
+  ];
+  assert.deepEqual(withoutBigMoneyAlert(initial, initial[0]), [initial[1]]);
+  const preview = { messageId: "preview", originalMessage: "Test" };
+  assert.deepEqual(withoutBigMoneyAlert([preview, initial[1]], preview), [initial[1]]);
+  assert.deepEqual(withoutBigMoneyAlert(initial, null), initial);
 });
