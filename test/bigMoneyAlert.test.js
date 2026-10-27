@@ -58,6 +58,8 @@ test("pending inbox combines raw DB messages, keeps previews and deduplicates ID
   assert.deepEqual(reconcileBigMoneyQueue(result, rows, new Set(["12"])).map((entry) =>
     entry.id ?? "preview"), ["preview", "13"]);
   assert.deepEqual(reconcileBigMoneyQueue([], [{ id: 5, originalMessage: " " }]), []);
+  const noIds = [{ originalMessage: "First" }, { originalMessage: "Second" }];
+  assert.equal(reconcileBigMoneyQueue(noIds, []).length, 2);
 });
 
 test("acknowledged alert is removed without hiding other queued messages", () => {
