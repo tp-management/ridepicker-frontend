@@ -44,8 +44,10 @@ export function reconcileBigMoneyQueue(current, pendingRows, handledIds = new Se
     })
     .filter((row) => row && !handledIds.has(String(row.id)));
   const seen = new Set();
-  return [...localAlerts, ...persisted].filter((row) => {
-    const key = row.id == null ? "local:" + String(row.messageId) : "db:" + String(row.id);
+  return [...localAlerts, ...persisted].filter((row, index) => {
+    const key = row.id == null
+      ? (row.messageId == null ? "local:index:" + String(index) : "local:" + String(row.messageId))
+      : "db:" + String(row.id);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
