@@ -13,7 +13,7 @@ import {
 } from "@/lib/bigMoneyAlert";
 
 const PREVIEW_MESSAGE =
-  "Today\nASAP\nCM24 1QW → KY16\n435 miles\n£950\nSameday payment";
+  "Today\nASAP\nCM24 1QW to KY16\n435miles\n£950\nSameday payment";
 
 export default function BigMoneyAlertHost() {
   const { user } = useAuth();
