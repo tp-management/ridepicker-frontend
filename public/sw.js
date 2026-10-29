@@ -62,8 +62,6 @@ self.addEventListener("push", (event) => {
     body: "A new high-value job is waiting. Open RidePicker to respond.",
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    tag: "ridepicker-big-money",
-    renotify: true,
     requireInteraction: true,
     data: { url: "/home" },
   }));
