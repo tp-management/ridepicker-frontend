@@ -53,3 +53,36 @@ self.addEventListener("fetch", (event) => {
       })
   );
 });
+
+
+// The push contains no job details; the existing authenticated dashboard reads
+// pending BIG MONEY alerts from the API after opening.
+self.addEventListener("push", (event) => {
+  event.waitUntil(self.registration.showNotification("🔥 BIG MONEY JOB", {
+    body: "A new high-value job is waiting. Open RidePicker to respond.",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: "ridepicker-big-money",
+    renotify: true,
+    requireInteraction: true,
+    data: { url: "/home" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL("/home", self.location.origin).href;
+  event.waitUntil((async () => {
+    const openWindows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of openWindows) {
+      if (new URL(client.url).origin !== self.location.origin) continue;
+      try {
+        if ("navigate" in client) await client.navigate(target);
+        return await client.focus();
+      } catch {
+        // Browser disallows navigation: try the next window / open a new tab.
+      }
+    }
+    return self.clients.openWindow(target);
+  })());
+});
