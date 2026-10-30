@@ -45,6 +45,7 @@ export default function Activity() {
   const {
     activity,
     whatsappConnected,
+    waStatus,
     botActive,
     updateActivityPriority,
   } = useProduct();
@@ -109,7 +110,15 @@ export default function Activity() {
 
   let empty;
   if (!has) {
-    if (!whatsappConnected) {
+    if (waStatus === "unknown") {
+      empty = (
+        <EmptyState
+          icon={MessageCircle}
+          title="Connection status unavailable"
+          description="We could not check WhatsApp right now. Your account remains signed in."
+        />
+      );
+    } else if (!whatsappConnected) {
       empty = (
         <EmptyState
           icon={MessageCircle}

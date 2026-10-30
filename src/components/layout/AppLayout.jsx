@@ -5,6 +5,7 @@ import { MobileStatusBar } from "./GlobalStatus";
 import DemoBanner from "@/components/DemoBanner";
 import BigMoneyAlertHost from "@/components/BigMoneyAlertHost";
 import BigMoneyPushCard from "@/components/home/BigMoneyPushCard";
+import AppLoadingShell from "./AppLoadingShell";
 import { ProductProvider, useProduct } from "@/lib/product/ProductContext";
 
 export default function AppLayout() {
@@ -16,7 +17,12 @@ export default function AppLayout() {
 }
 
 function AppShell() {
-  const { demoMode, disableDemo, user, whatsappConnected } = useProduct();
+  const { demoMode, disableDemo, user, whatsappConnected, whatsappLoading } = useProduct();
+
+  // Keep the same navigation and dashboard geometry without showing a fake
+  // logged-out/disconnected screen before the first backend session response.
+  if (whatsappLoading) return <AppLoadingShell />;
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar />

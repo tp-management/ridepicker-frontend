@@ -9,6 +9,7 @@ import { whatsappService } from "@/lib/services/whatsappService";
 import { billingService } from "@/lib/services/billingService";
 import { liveEventsService } from "@/lib/services/liveEventsService";
 import { isApiMode } from "@/lib/config";
+import { resolveWhatsAppStatus } from "./whatsappViewState";
 import { JOBS as DEMO_JOBS, ACTIVITY as DEMO_ACTIVITY } from "@/lib/mockData";
 
 const ProductContext = createContext(null);
@@ -35,7 +36,11 @@ export function ProductProvider({ children }) {
 
   // ---- WhatsApp session ----
   const [waSession, setWaSessionRaw] = useState(null);
-  const [whatsappLoading, setWhatsappLoading] = useState(true);
+  const [whatsappRequestPending, setWhatsappRequestPending] = useState(true);
+  const [whatsappReadError, setWhatsappReadError] = useState(false);
+  const [waResolvedUserId, setWaResolvedUserId] = useState(null);
+  const [whatsappCheckVersion, setWhatsappCheckVersion] = useState(0);
+  const refreshWhatsAppStatus = useCallback(() => setWhatsappCheckVersion((v) => v + 1), []);
   const setWaSession = useCallback((next) => {
     setWaSessionRaw((prev) => {
       if (prev === next) return prev;
@@ -58,21 +63,35 @@ export function ProductProvider({ children }) {
     const uid = user?.id;
     if (!uid) {
       setWaSession(null);
-      setWhatsappLoading(false);
+      setWhatsappRequestPending(false);
+      setWhatsappReadError(false);
+      setWaResolvedUserId(null);
       return undefined;
     }
 
     let active = true;
-    setWhatsappLoading(true);
+    // Do not interpret the empty initial value as a disconnected WhatsApp.
+    // Reset the snapshot on account changes so another user's data never flashes.
+    setWaSession(null);
+    setWhatsappRequestPending(true);
+    setWhatsappReadError(false);
 
     const refresh = async (initial = false) => {
       try {
         const session = await whatsappService.getSession(uid);
-        if (active) setWaSession(session);
+        if (active) {
+          setWaSession(session);
+          setWhatsappReadError(false);
+        }
       } catch {
-        // Keep the last known state. A later push or reconnect can recover it.
+        // A temporary API/network failure is not a WhatsApp logout.
+        // If an earlier snapshot exists, preserve it during later refresh errors.
+        if (active && initial) setWhatsappReadError(true);
       } finally {
-        if (active && initial) setWhatsappLoading(false);
+        if (active && initial) {
+          setWaResolvedUserId(uid);
+          setWhatsappRequestPending(false);
+        }
       }
     };
 
@@ -85,7 +104,7 @@ export function ProductProvider({ children }) {
       active = false;
       unsubscribe();
     };
-  }, [user?.id, setWaSession]);
+  }, [user?.id, setWaSession, whatsappCheckVersion]);
 
   // ---- RidePicker mode ----
   const [mode, setModeState] = useState("off");
@@ -217,13 +236,16 @@ export function ProductProvider({ children }) {
     };
   }, [user?.id]);
 
-  const waStatus =
-    waSession?.status === "connected"
-      ? "connected"
-      : waSession?.status === "reconnecting"
-      ? "reconnecting"
-      : "disconnected";
-  const whatsappConnected = waSession?.status === "connected";
+  // Resolve state per account, rather than conflating "not fetched yet",
+  // "cannot fetch" and "verified disconnected".
+  const whatsappLoading = Boolean(user?.id) &&
+    (whatsappRequestPending || waResolvedUserId !== user.id);
+  const waStatus = resolveWhatsAppStatus({
+    session: waResolvedUserId === user?.id ? waSession : null,
+    loading: whatsappLoading,
+    unavailable: whatsappReadError,
+  });
+  const whatsappConnected = waStatus === "connected";
   const waConnectedAt = waSession?.connectedAt || null;
   const waAccount = waSession?.account || null;
   const botActive = mode !== "off";
@@ -523,6 +545,7 @@ export function ProductProvider({ children }) {
     waAccount,
     whatsappConnected,
     whatsappLoading,
+    refreshWhatsAppStatus,
     mode,
     setMode,
     botActive,

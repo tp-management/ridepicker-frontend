@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // of the operational/financial content so historical data stays accessible even
 // when RidePicker is paused or WhatsApp is disconnected.
 export default function StatusBanner() {
-  const { waStatus, whatsappConnected, mode, hasActiveSubscription, setMode, retryReconnect } = useProduct();
+  const { waStatus, whatsappConnected, mode, hasActiveSubscription, setMode, retryReconnect, refreshWhatsAppStatus } = useProduct();
   const { toast } = useToast();
 
   const handleEnable = () => {
@@ -19,7 +19,21 @@ export default function StatusBanner() {
   };
 
   let tone, Icon, title, description, action;
-  if (waStatus === "reconnecting") {
+  if (waStatus === "unknown") {
+    tone = "amber";
+    Icon = AlertTriangle;
+    title = "Unable to check WhatsApp status";
+    description = "The server did not respond. You remain signed in, and this does not mean your WhatsApp was disconnected.";
+    action = (
+      <button
+        type="button"
+        onClick={refreshWhatsAppStatus}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50"
+      >
+        <RefreshCw className="h-3.5 w-3.5" /> Try again
+      </button>
+    );
+  } else if (waStatus === "reconnecting") {
     tone = "amber";
     Icon = AlertTriangle;
     title = "WhatsApp reconnecting…";

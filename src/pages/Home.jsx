@@ -9,12 +9,14 @@ import NeedsAttention from "@/components/dashboard/NeedsAttention";
 import RidePickerSummary from "@/components/dashboard/RidePickerSummary";
 import DashboardJobs from "@/components/dashboard/DashboardJobs";
 import { greeting } from "@/lib/format";
+import { shouldShowWhatsAppOnboarding } from "@/lib/product/whatsappViewState";
 
 export default function Home() {
   const {
     user,
     jobs,
     whatsappConnected,
+    waStatus,
     demoMode,
     enableDemo,
     changeJobStatus,
@@ -48,7 +50,7 @@ export default function Home() {
   };
 
   // Brand-new user with no WhatsApp and no historical jobs: onboarding.
-  if (!whatsappConnected && !hasJobs && !demoMode) {
+  if (shouldShowWhatsAppOnboarding({ status: waStatus, hasJobs, demoMode })) {
     return <ConnectState onPreviewDemo={enableDemo} />;
   }
 

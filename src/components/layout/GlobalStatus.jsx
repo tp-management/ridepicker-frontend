@@ -1,5 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import { useRidePickerMode } from "@/lib/product/useRidePickerMode";
+import { useProduct } from "@/lib/product/ProductContext";
 import ModeControl from "@/components/ModeControl";
 import { cn } from "@/lib/utils";
 
@@ -15,11 +16,12 @@ function StatusDot({ on }) {
 
 function useModeControl() {
   const { whatsappConnected, mode, onMode } = useRidePickerMode();
-  return { whatsappConnected, mode, onMode };
+  const { waStatus } = useProduct();
+  return { whatsappConnected, waStatus, mode, onMode };
 }
 
 export function GlobalStatus() {
-  const { whatsappConnected, mode, onMode } = useModeControl();
+  const { whatsappConnected, waStatus, mode, onMode } = useModeControl();
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3.5">
       <div className="flex items-center justify-between">
@@ -30,7 +32,7 @@ export function GlobalStatus() {
         <div className="flex items-center gap-1.5">
           <StatusDot on={whatsappConnected} />
           <span className={cn("text-xs font-medium", whatsappConnected ? "text-emerald-600" : "text-slate-400")}>
-            {whatsappConnected ? "Connected" : "Offline"}
+            {waStatus === "unknown" ? "Unavailable" : whatsappConnected ? "Connected" : "Offline"}
           </span>
         </div>
       </div>
@@ -41,25 +43,25 @@ export function GlobalStatus() {
       </div>
 
       <p className="text-xs leading-relaxed text-slate-400">
-        {!whatsappConnected ? "Connect WhatsApp to enable RidePicker." : MODE_TEXT[mode]}
+        {waStatus === "unknown" ? "Could not verify WhatsApp. Your account is still signed in." : !whatsappConnected ? "Connect WhatsApp to enable RidePicker." : MODE_TEXT[mode]}
       </p>
     </div>
   );
 }
 
 export function MobileStatusBar() {
-  const { whatsappConnected, mode, onMode } = useModeControl();
+  const { whatsappConnected, waStatus, mode, onMode } = useModeControl();
   return (
     <div className="border-b border-slate-200 bg-white px-4 py-2.5 sm:hidden">
       <div className="flex items-center gap-4 text-xs">
         <div className="flex items-center gap-1.5">
           <StatusDot on={whatsappConnected} />
-          <span className="text-slate-600">WhatsApp {whatsappConnected ? "on" : "off"}</span>
+          <span className="text-slate-600">WhatsApp {waStatus === "unknown" ? "unavailable" : whatsappConnected ? "on" : "off"}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <StatusDot on={mode !== "off" && whatsappConnected} />
           <span className="text-slate-600">
-            RidePicker {!whatsappConnected || mode === "off" ? "off" : mode}
+            RidePicker {waStatus === "unknown" ? "status unavailable" : !whatsappConnected || mode === "off" ? "off" : mode}
           </span>
         </div>
       </div>
