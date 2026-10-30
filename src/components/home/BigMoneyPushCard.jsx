@@ -28,7 +28,8 @@ function reminderDismissed(userId) {
   }
 }
 
-export default function BigMoneyPushCard({ userId }) {
+// The opt-in card stays on Home; its single global popup is mounted in AppLayout.
+export default function BigMoneyPushCard({ userId, showCard = true, showReminder = true }) {
   const [state, setState] = useState("checking");
   const [dismissed, setDismissed] = useState(false);
   const [error, setError] = useState("");
@@ -75,15 +76,24 @@ export default function BigMoneyPushCard({ userId }) {
       }
     };
 
+    const onPushEnabled = (event) => {
+      if (String(event.detail?.userId) !== String(userId)) return;
+      ++lastCheck;
+      setState("enabled");
+      setReminderOpen(false);
+    };
+
     const checkWhenVisible = () => {
       if (document.visibilityState === "visible") void checkPermission();
     };
     void checkPermission();
     window.addEventListener("focus", checkWhenVisible);
+    window.addEventListener("ridepicker:push-enabled", onPushEnabled);
     document.addEventListener("visibilitychange", checkWhenVisible);
     return () => {
       active = false;
       window.removeEventListener("focus", checkWhenVisible);
+      window.removeEventListener("ridepicker:push-enabled", onPushEnabled);
       document.removeEventListener("visibilitychange", checkWhenVisible);
     };
   }, [userId]);
@@ -132,6 +142,7 @@ export default function BigMoneyPushCard({ userId }) {
       }
       setState("enabled");
       setReminderOpen(false);
+      window.dispatchEvent(new CustomEvent("ridepicker:push-enabled", { detail: { userId } }));
     } catch (reason) {
       setState(Notification.permission === "denied" ? "denied" : "ready");
       setError(reason?.status === 503
@@ -142,11 +153,12 @@ export default function BigMoneyPushCard({ userId }) {
     }
   };
 
-  if (!userId || dismissed || state === "checking" || state === "enabled") return null;
+  if (!userId || state === "checking" || state === "enabled" || (!showCard && !showReminder)) return null;
   const unavailable = state === "unsupported" || state === "denied";
 
   return (
     <>
+      {showCard && !dismissed && (
       <section className="rounded-xl border border-emerald-200 bg-white p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
@@ -182,6 +194,8 @@ export default function BigMoneyPushCard({ userId }) {
         </div>
       </div>
       </section>
+      )}
+      {showReminder && (
       <DialogPrimitive.Root modal={false} open={reminderOpen} onOpenChange={(open) => {
         if (!open) dismissReminder();
       }}>
@@ -234,6 +248,7 @@ export default function BigMoneyPushCard({ userId }) {
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
+      )}
     </>
   );
 }

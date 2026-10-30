@@ -62,7 +62,7 @@ export default function Home() {
       </div>
 
       <StatusBanner />
-      {whatsappConnected && <BigMoneyPushCard userId={user?.id} />}
+      {whatsappConnected && <BigMoneyPushCard userId={user?.id} showReminder={false} />}
 
       {hasJobs ? (
         <>

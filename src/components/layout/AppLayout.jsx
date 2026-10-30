@@ -4,6 +4,7 @@ import BottomNav from "./BottomNav";
 import { MobileStatusBar } from "./GlobalStatus";
 import DemoBanner from "@/components/DemoBanner";
 import BigMoneyAlertHost from "@/components/BigMoneyAlertHost";
+import BigMoneyPushCard from "@/components/home/BigMoneyPushCard";
 import { ProductProvider, useProduct } from "@/lib/product/ProductContext";
 
 export default function AppLayout() {
@@ -15,7 +16,7 @@ export default function AppLayout() {
 }
 
 function AppShell() {
-  const { demoMode, disableDemo } = useProduct();
+  const { demoMode, disableDemo, user, whatsappConnected } = useProduct();
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar />
@@ -28,6 +29,8 @@ function AppShell() {
         <div className="h-20 sm:hidden" />
       </div>
       <BottomNav />
+      {/* Global modals live outside page-specific routes, so they work on every screen. */}
+      <BigMoneyPushCard userId={whatsappConnected ? user?.id : null} showCard={false} />
       <BigMoneyAlertHost />
     </div>
   );
