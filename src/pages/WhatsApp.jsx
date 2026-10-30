@@ -19,6 +19,8 @@ export default function WhatsApp() {
     user,
     whatsappSession,
     whatsappLoading,
+    waStatus,
+    refreshWhatsAppStatus,
     connectWhatsApp,
     disconnectWhatsApp,
     simulateDrop,
@@ -32,7 +34,7 @@ export default function WhatsApp() {
   const navigate = useNavigate();
   const [confirm, setConfirm] = useState(false);
 
-  const status = whatsappSession?.status || "disconnected";
+  const status = waStatus;
   const pairingCode = whatsappSession?.pairingCode || null;
   const account = whatsappSession?.account || null;
   const connectedAt = whatsappSession?.connectedAt || null;
@@ -110,7 +112,18 @@ export default function WhatsApp() {
         </p>
       </div>
 
-      {status === "connected" ? (
+      {status === "unknown" ? (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-sm font-semibold text-amber-900">Unable to check your WhatsApp connection</h2>
+          <p className="mt-2 text-sm text-amber-800">
+            RidePicker could not reach the server. Your account remains signed in; this does not mean WhatsApp was disconnected.
+          </p>
+          <button type="button" onClick={refreshWhatsAppStatus}
+            className="mt-4 rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+            Try again
+          </button>
+        </div>
+      ) : status === "connected" ? (
         <WhatsappConnectedCard
           account={account}
           connectedAt={connectedAt}
