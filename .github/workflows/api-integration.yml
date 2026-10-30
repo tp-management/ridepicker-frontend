@@ -22,6 +22,7 @@ jobs:
       - run: npm run check:lifecycle
       - run: npm run test:activity
       - run: npm run test:big-money
+      - run: npm run test:session-ui
       - name: Record existing project typecheck baseline
         run: |
           echo "Full-project typecheck currently has pre-existing UI typing errors outside this API change."
