@@ -39,7 +39,10 @@ export const whatsappApi = {
   },
 
   async getSession(userId) {
-    const data = await apiRequest(basePath(userId));
+    // Do not leave the entire authenticated shell waiting forever when the
+    // backend is restarting or a network request stalls.
+    const signal = typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(12000) : undefined;
+    const data = await apiRequest(basePath(userId), { signal });
     return remember(userId, sessionFrom(data));
   },
 
