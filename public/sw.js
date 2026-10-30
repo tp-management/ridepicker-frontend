@@ -53,3 +53,36 @@ self.addEventListener("fetch", (event) => {
       })
   );
 });
+
+
+// No private job text is sent. The existing BIG MONEY inbox loads after opening.
+self.addEventListener("push", (event) => {
+  event.waitUntil(self.registration.showNotification("🔥 BIG MONEY JOB", {
+    body: "A new high-value job is waiting. Open RidePicker to respond.",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    requireInteraction: true,
+    data: { url: "/home" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const target = new URL("/home", self.location.origin).href;
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if (new URL(client.url).origin !== self.location.origin) continue;
+      if ("navigate" in client) {
+        try {
+          await client.navigate(target);
+          await client.focus();
+          return;
+        } catch {
+          // Fall back to another window or a new tab.
+        }
+      }
+    }
+    return self.clients.openWindow(target);
+  })());
+});

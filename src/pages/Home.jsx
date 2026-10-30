@@ -3,6 +3,7 @@ import { useProduct } from "@/lib/product/ProductContext";
 import JobDetailPanel from "@/components/JobDetailPanel";
 import ConnectState from "@/components/home/ConnectState";
 import StatusBanner from "@/components/dashboard/StatusBanner";
+import BigMoneyPushCard from "@/components/home/BigMoneyPushCard";
 import FinancialOverview from "@/components/dashboard/FinancialOverview";
 import NeedsAttention from "@/components/dashboard/NeedsAttention";
 import RidePickerSummary from "@/components/dashboard/RidePickerSummary";
@@ -61,6 +62,7 @@ export default function Home() {
       </div>
 
       <StatusBanner />
+      {whatsappConnected && <BigMoneyPushCard userId={user?.id} />}
 
       {hasJobs ? (
         <>
