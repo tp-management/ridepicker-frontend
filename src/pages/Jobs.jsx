@@ -29,6 +29,7 @@ export default function Jobs() {
   const {
     jobs,
     whatsappConnected,
+    waStatus,
     mode,
     changeJobStatus,
     setJobPayment,
@@ -124,11 +125,19 @@ export default function Jobs() {
   };
 
   const hasJobs = jobs.length > 0;
-  const showBanner = hasJobs && (!whatsappConnected || mode === "off");
+  const showBanner = hasJobs && (waStatus === "disconnected" || (whatsappConnected && mode === "off"));
 
   let empty;
   if (!hasJobs) {
-    if (!whatsappConnected) {
+    if (waStatus === "unknown") {
+      empty = (
+        <EmptyState
+          icon={AlertTriangle}
+          title="Connection status unavailable"
+          description="RidePicker could not verify WhatsApp right now. Your account remains signed in. Try again shortly."
+        />
+      );
+    } else if (!whatsappConnected) {
       empty = (
         <EmptyState
           icon={MessageCircle}
